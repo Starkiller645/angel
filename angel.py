@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # Import required libraries
 import sys
 import time
@@ -17,7 +18,7 @@ except ImportError:
 
 # Start QApplication instance
 app = QApplication(sys.argv)
-app.setWindowIcon(QIcon('snootuxwhite.ico'))
+app.setWindowIcon(QIcon('angel.ico'))
 from idwidgets import *
 
 # Create a class as a child of QMainWindow for the main window of the app
@@ -26,13 +27,13 @@ class MainWindow(QMainWindow):
         super(MainWindow, self).__init__(*args, **kwargs)
         submissionImage = None
         self.resize(1080, 640)
-        self.setWindowTitle('ReddiTux v1.0-beta-prerelease')
-        label = QLabel('First PyQt5 window! Hello World!')
+        label = QLabel()
+        self.setWindowTitle('Angel v0.1-beta')
         self.mainWidget = QWidget()
 
         # Setup
         scriptDir = os.path.dirname(os.path.realpath(__file__))
-        self.setWindowIcon(QIcon(self.resourcePath('snootuxwhite.ico')))
+        self.setWindowIcon(QIcon(self.resourcePath('angel.ico')))
 
         # Create login boxes
         loginBox = QVBoxLayout()
@@ -40,10 +41,10 @@ class MainWindow(QMainWindow):
         loginBox.width = 300
 
         # Create snootux pixmap
-        pixmap = QPixmap(self.resourcePath('snootuxwhite.png'))
-        pixmap = pixmap.scaled(100, 100, Qt.KeepAspectRatio)
+        pixmap = QPixmap(self.resourcePath('angel.png'))
+        pixmap = pixmap.scaled(300, 300, Qt.KeepAspectRatio)
         label.setPixmap(pixmap)
-        label.resize(100, 100)
+        label.resize(300, 300)
 
         # Set alignment to center
         label.setAlignment(Qt.AlignCenter)
