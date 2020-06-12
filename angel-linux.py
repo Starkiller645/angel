@@ -192,7 +192,10 @@ class MainWindow(QMainWindow):
                 self.submissionTitleList.append(submission.title)
                 self.submissionDescList.append(submission.selftext)
                 self.submissionImageUrl.append(submission.url)
-                self.submissionAuthorList.append(submission.author.name)
+                if submission.author.name is not None:
+                    self.submissionAuthorList.append(submission.author.name)
+                else:
+                    self.submissionAuthorList.append('[deleted]')
                 if len(submission.title) > 70:
                     self.subWidgetList.append(IDWidget(submission.title[:70] + '...'))
                 else:
