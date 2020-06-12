@@ -5,7 +5,7 @@ import time
 import praw
 import prawcore
 import os
-from PIL import Image
+from PIL import Image, ImageOps
 import requests
 import io
 from PyQt5.QtWidgets import *
@@ -19,7 +19,6 @@ except ImportError:
 # Start QApplication instance
 app = QApplication(sys.argv)
 app.setWindowIcon(QIcon('/opt/angel-reddit/angel.ico'))
-from idwidgets import *
 
 # Create a custom widget class with an implementation of a unique identifier for the submission widgets
 class IDWidget(QCommandLinkButton):
@@ -41,7 +40,7 @@ class MainWindow(QMainWindow):
         submissionImage = None
         self.resize(1080, 640)
         label = QLabel()
-        self.setWindowTitle('Angel v0.1-beta')
+        self.setWindowTitle('Angel v0.3-beta')
         self.mainWidget = QWidget()
 
         # Setup
@@ -103,18 +102,43 @@ class MainWindow(QMainWindow):
         image = requests.get(url)
         imageBytes = io.BytesIO(image.content)
         image = Image.open(imageBytes)
-        image.save('/opt/angel-reddit/temp/.img.{}'.format(image.format))
-        return '/opt/angel-reddit/temp/.img.{}'.format(image.format)
+        image.save('/opt/angel-reddit/temp/.img.{}'.format(image.format.lower()))
+        return '/opt/angel-reddit/temp/.img.{}'.format(image.format.lower())
 
     def resourcePath(self, relative):
-        return os.path.join(os.environ.get("_MEIPASS2", os.path.abspath(".")), relative)
+        return os.path.join(os.environ.get("_MEIPASS2", os.pathdef))
 
     def fetchImageUrl(self, sub):
-        return
+        image = requests.get(url)
+        imageBytes = io.BytesIO(image.content)
+        image = Image.open(imageBytes)
+        image.save('/opt/angel-reddit/temp/.img.{}'.format(image.format))
+        return '/opt/angel-reddit/temp/.img.{}'.format((image.format).abspath("."), relative)
 
     def clearLayout(self, layout):
         for i in reversed(range(layout.count())):
             layout.itemAt(i).widget().deleteLater()
+
+    def getSubIcon(self, sub):
+        mask = Image.open('/opt/angel-reddit/mask.png').convert('L')
+        if 'http' in sub.icon_img:
+            image = requests.get(sub.icon_img)
+            imageBytes = io.BytesIO(image.content)
+            image = Image.open(imageBytes)
+        else:
+            image = Image.open('/opt/angel-reddit/default.png')
+        output = ImageOps.fit(image, mask.size, centering=(0.5, 0.5))
+        output.putalpha(mask)
+        output.save('/opt/angel-reddit/temp/.subimg.png')
+        return '/opt/angel-reddit/temp/.subimg.png'
+
+    def setSubMeta(self, sub):
+        imgPath = self.getSubIcon(sub)
+        self.subIconPixmap = QPixmap(imgPath)
+        self.subIcon.setPixmap(self.subIconPixmap)
+        self.subIcon.show()
+        self.subHeader.setText(' r/' + sub.display_name)
+        return
 
     def view(self):
         print(self.sender())
@@ -174,6 +198,21 @@ class MainWindow(QMainWindow):
         self.mainLayout.addWidget(self.viewWidget)
         self.viewWidget.show()
 
+    def showSubDesc(self):
+        self.mainLayout.removeWidget(self.viewWidget)
+        self.viewWidget.deleteLater()
+        self.viewWidget = None
+        self.viewWidget = QWidget()
+        self.descWidget = QLabel(self.sub.description_html)
+        self.descWidget.setTextFormat(Qt.RichText)
+        self.scroll = QScrollArea()
+        self.viewLayout = QVBoxLayout()
+        self.scroll.setWidget(self.descWidget)
+        self.viewLayout.addWidget(self.scroll)
+        self.viewWidget.setLayout(self.viewLayout)
+        self.mainLayout.addWidget(self.viewWidget)
+        self.viewWidget.show()
+
     def switchSub(self):
         self.textIcon = QIcon('/opt/angel-reddit/text.png')
         self.linkIcon = QIcon('/opt/angel-reddit/link.png')
@@ -183,11 +222,11 @@ class MainWindow(QMainWindow):
         self.clearLayout(self.subList)
         self.status.setText('Retrieving submissions')
         time.sleep(0.5)
-        sub = self.reddit.subreddit(self.searchSubs.text()[2:])
+        self.sub = self.reddit.subreddit(self.searchSubs.text()[2:])
         self.submissionIDList, self.submissionTitleList, self.submissionDescList, self.submissionImageUrl, self.subWidgetList, self.submissionAuthorList = [], [], [], [], [], []
         self.i = 0
         try:
-            for submission in sub.hot(limit=10):
+            for submission in self.sub.hot(limit=10):
                 self.submissionIDList.append(submission.id)
                 self.submissionTitleList.append(submission.title)
                 self.submissionDescList.append(submission.selftext)
@@ -206,6 +245,8 @@ class MainWindow(QMainWindow):
         except prawcore.exceptions.RequestException:
             self.wowSuchEmpty.setText('An error occurred - Read\noperation timed out')
             self.status.setText('Error - Timed out or sub does not exist')
+        self.setSubMeta(self.sub)
+        self.showSubDesc()
         print(self.subWidgetList)
         for self.i in range(len(self.submissionIDList)):
             if len(self.submissionDescList[self.i]) > 100:
@@ -242,6 +283,7 @@ class MainWindow(QMainWindow):
                 self.reddit = praw.Reddit(redirect_uri="http://localhost:8080", client_id="FODiLQuVNlDa3g", client_secret=None, user_agent="RedditTux - A Reddit Client for Linux")
             if self.reddit.subreddit('announcements') is not None:
                 self.title.setText('Success! Connected to Reddit')
+                time.sleep(0.5)
                 ready = True
                 break
             else:
@@ -252,6 +294,7 @@ class MainWindow(QMainWindow):
                 print(self.reddit.user.me())
             if self.reddit.user.me() == username:
                 self.title.setText('Success! Connected to Reddit')
+                time.sleep(0.5)
                 loggedIn = True
                 ready = True
                 break
@@ -264,13 +307,29 @@ class MainWindow(QMainWindow):
         self.searchSubs.setMaximumWidth(500)
         self.searchButton.setMaximumWidth(40)
         self.toolbar = QToolBar()
-        self.status = QLabel('Connected to Reddit')
-        self.spacer1 = QLabel('           ')
+        self.status = QLineEdit('Connected to Reddit')
+        self.status.setReadOnly(True)
+        self.status.setAlignment(Qt.AlignRight)
+        self.status.setMaximumWidth(175)
+        self.status.setMinimumWidth(175)
+        self.spacer1 = QWidget()
+        self.spacer2 = QWidget()
+        self.spacer1.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.spacer2.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.subIcon = QLabel()
+        self.subIconPixmap = QPixmap('/opt/angel-linux/default.png')
+        self.subIcon.setPixmap(self.subIconPixmap)
+        self.subIcon.show()
+        self.subHeader = QLabel('r/none')
+        self.subHeader.setStyleSheet('font-weight: bold; font-size: 30px;')
         self.status.setAlignment(Qt.AlignCenter)
         self.addToolBar(self.toolbar)
         self.toolbar.addWidget(self.searchSubs)
         self.toolbar.addWidget(self.searchButton)
         self.toolbar.addWidget(self.spacer1)
+        self.toolbar.addWidget(self.subIcon)
+        self.toolbar.addWidget(self.subHeader)
+        self.toolbar.addWidget(self.spacer2)
         self.toolbar.addWidget(self.status)
         self.mainLayout = QHBoxLayout()
         self.wowSuchEmpty = QLabel('Wow, such empty!')
