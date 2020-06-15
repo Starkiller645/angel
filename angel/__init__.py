@@ -8,9 +8,11 @@ import os
 from PIL import Image, ImageOps
 import requests
 import io
+from lib import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
+from test import *
 try:
     import pkg_resources.py2_warn
 except ImportError:
@@ -32,6 +34,19 @@ class IDWidget(QCommandLinkButton):
     def getID(self):
         return self.id
 
+# Create error classes to handle timeout or 404 exceptions, etc.
+class RequestTimeOut(QWidget):
+    def __init__(self, *args, **kwargs):
+        super(RequestTimeOut, self).__init__()
+        self.mainLayout = QVBoxLayout()
+        self.subLayout = QHBoxLayout()
+        self.imageWidget = QLabel()
+        self.headerWidget = QLabel()
+        self.headerWidget.setStyleSheet('font-size: 40px;')
+        self.headerWidget.setText('<b>Error</b> Request timed out')
+        self.image = QPixmap('/opt/angel-reddit/error408')
+        self.imageWidget.setPixmap(self.image)
+
 
 # Create a class as a child of QMainWindow for the main window of the app
 class MainWindow(QMainWindow):
@@ -40,7 +55,7 @@ class MainWindow(QMainWindow):
         submissionImage = None
         self.resize(1080, 640)
         label = QLabel()
-        self.setWindowTitle('Angel v0.3-beta')
+        self.setWindowTitle('Angel v0.4-beta')
         self.mainWidget = QWidget()
 
         # Setup
@@ -205,6 +220,7 @@ class MainWindow(QMainWindow):
         self.viewWidget = QWidget()
         self.descWidget = QLabel(self.sub.description_html)
         self.descWidget.setTextFormat(Qt.RichText)
+        self.descWidget.setOpenExternalLinks(True)
         self.scroll = QScrollArea()
         self.viewLayout = QVBoxLayout()
         self.scroll.setWidget(self.descWidget)
@@ -220,13 +236,15 @@ class MainWindow(QMainWindow):
         if self.centralWidget() == self.wowSuchEmpty:
             self.setCentralWidget(self.window)
         self.clearLayout(self.subList)
+        self.subList = QVBoxLayout()
+        self.subredditBar = QWidget()
         self.status.setText('Retrieving submissions')
         time.sleep(0.5)
         self.sub = self.reddit.subreddit(self.searchSubs.text()[2:])
         self.submissionIDList, self.submissionTitleList, self.submissionDescList, self.submissionImageUrl, self.subWidgetList, self.submissionAuthorList = [], [], [], [], [], []
         self.i = 0
         try:
-            for submission in self.sub.hot(limit=10):
+            for submission in self.sub.hot(limit=100):
                 self.submissionIDList.append(submission.id)
                 self.submissionTitleList.append(submission.title)
                 self.submissionDescList.append(submission.selftext)
@@ -236,7 +254,7 @@ class MainWindow(QMainWindow):
                 else:
                     self.submissionAuthorList.append('[deleted]')
                 if len(submission.title) > 70:
-                    self.subWidgetList.append(IDWidget(submission.title[:70] + '...'))
+                    self.subWidgetList.append(IDWidget(submission.title[:70] + '...', parent=self.subredditBar))
                 else:
                     self.subWidgetList.append(IDWidget(submission.title))
                 print()
@@ -251,23 +269,35 @@ class MainWindow(QMainWindow):
         for self.i in range(len(self.submissionIDList)):
             if len(self.submissionDescList[self.i]) > 100:
                 working = self.subWidgetList[self.i]
-                working.setDescription(self.submissionDescList[self.i][:100] + '...')
+                self.subWidgetList[self.i].setDescription(self.submissionDescList[self.i][:100] + '...')
                 print('Getting submission #' + self.submissionIDList[self.i] + ': ' + self.submissionTitleList[self.i])
+                print('Set description of submission')
             else:
                 print('Getting submission #' + self.submissionIDList[self.i] + ': ' + self.submissionTitleList[self.i])
-                working = self.subWidgetList[self.i]
-                working.setDescription(self.submissionDescList[self.i])
-            self.subList.addWidget(self.subWidgetList[self.i])
+                self.subWidgetList[self.i].setDescription(self.submissionDescList[self.i])
+                print('Set description of submission')
+            self.subWidgetList[self.i].show()
             self.subWidgetList[self.i].setID(id=self.i)
             self.subWidgetList[self.i].setText(self.submissionTitleList[self.i])
+            print('Set text of submission')
             self.subWidgetList[self.i].clicked.connect(self.view)
+            self.subList.addWidget(self.subWidgetList[self.i])
             if 'reddit.com' in self.submissionImageUrl[self.i]:
                 self.subWidgetList[self.i].setIcon(self.textIcon)
-            elif 'i.redd.it' in self.submissionImageUrl[self.i]:
+            elif 'i.redd.it' in self.submissionImageUrl[self.i] or 'i.imgur.com' in self.submissionImageUrl[self.i]:
                 self.subWidgetList[self.i].setIcon(self.imageIcon)
             else:
                 self.subWidgetList[self.i].setIcon(self.linkIcon)
             print(self.subWidgetList[self.i].id)
+            self.subredditBar.setLayout(self.subList)
+            self.subWidgetList[self.i].setFixedHeight(100)
+            self.subScroll.setFixedWidth(480)
+            self.subScroll.setFixedWidth(500)
+            self.subScroll.setWidget(self.subredditBar)
+            self.subScroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+            self.subScroll.setWidgetResizable(True)
+            self.subWidgetList[self.i].show()
+            time.sleep(0.01)
         self.status.setText('Connected to Reddit')
 
     def initReddit(self):
@@ -305,6 +335,7 @@ class MainWindow(QMainWindow):
         self.searchSubs = QLineEdit(placeholderText="r/subreddit")
         self.searchButton = QPushButton('Go')
         self.searchSubs.setMaximumWidth(500)
+        self.searchSubs.setMinimumWidth(500)
         self.searchButton.setMaximumWidth(40)
         self.toolbar = QToolBar()
         self.status = QLineEdit('Connected to Reddit')
@@ -335,16 +366,20 @@ class MainWindow(QMainWindow):
         self.wowSuchEmpty = QLabel('Wow, such empty!')
         self.wowSuchEmpty.setAlignment(Qt.AlignCenter)
         self.window = QWidget()
-        self.subredditBar = QWidget()
         self.subList = QVBoxLayout()
-        self.subredditBar.setLayout(self.subList)
+        self.subredditBar = QWidget()
         self.subredditBar.setMaximumWidth(540)
-        self.mainLayout.addWidget(self.subredditBar)
+        self.subredditBar.setMinimumWidth(540)
+        self.subredditBar.setLayout(self.subList)
+        self.subScroll = QScrollArea()
+        self.subScroll.setWidget(self.subredditBar)
+        self.subScroll.widgetResizable = True
         self.scroll = QScrollArea()
         self.viewWidget = QLabel('Wow, such empty!')
-        self.scroll.setWidget(self.viewWidget)
-        self.mainLayout.addWidget(self.viewWidget)
+        self.scroll.setWidget(self.subredditBar)
+        self.mainLayout.addWidget(self.subScroll)
         self.window.setLayout(self.mainLayout)
+        self.window.setStyleSheet('@import url("https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&display=swap"); font-family: Lato')
         self.setCentralWidget(self.window)
 
         self.searchButton.clicked.connect(self.switchSub)
