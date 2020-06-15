@@ -198,6 +198,15 @@ class MainWindow(QMainWindow):
         self.submissionUrl.setText('<a href=\"{}\">Link</a>'.format(self.submissionImageUrl[widgetNum]))
         self.submissionUrl.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.submissionUrl.setOpenExternalLinks(True)
+        try:
+            self.upvoteImg = QPixmap('/opt/angel-reddit/upvote.png')
+            self.upvote = QLabel(self.upvoteImg)
+            self.downvoteImg = QPixmap('/opt/angel-reddit/downvote.png')
+            self.downvote = QLabel(self.downvoteImg)
+        except:
+            self.upvote, self.downvote = QLabel('^\n|'), QLabel('|\nv')
+        self.upScore = QLabel(str(self.upvoteList[widgetNum]))
+        self.downScore = QLabel(str(self.downvoteList[widgetNum]))
         self.mainBody.addWidget(self.submissionTitle)
         self.mainBody.addWidget(self.submissionAuthor)
         if submissionImage is not None:
@@ -205,7 +214,11 @@ class MainWindow(QMainWindow):
         self.mainBody.addWidget(self.submissionBody)
         self.mainBodyWidget.setLayout(self.mainBody)
         self.scroll.setWidget(self.mainBodyWidget)
-        self.urlLayout.addWidget(self.submissionUrl)
+        self.urlLayout.addWidget(self.upvote)
+        self.urlLayout.addWidget(self.upScore)
+        self.urlLayout.addWidget(QLabel('        '))
+        self.urlLayout.addWidget(self.downScore)
+        self.urlLayout.addWidget(self.downvote)
         self.urlBar.setLayout(self.urlLayout)
         self.viewLayout.addWidget(self.scroll)
         self.viewLayout.addWidget(self.urlBar)
@@ -242,6 +255,7 @@ class MainWindow(QMainWindow):
         time.sleep(0.5)
         self.sub = self.reddit.subreddit(self.searchSubs.text()[2:])
         self.submissionIDList, self.submissionTitleList, self.submissionDescList, self.submissionImageUrl, self.subWidgetList, self.submissionAuthorList = [], [], [], [], [], []
+        self.upvoteList, self.downvoteList = [], []
         self.i = 0
         try:
             for submission in self.sub.hot(limit=100):
@@ -249,17 +263,21 @@ class MainWindow(QMainWindow):
                 self.submissionTitleList.append(submission.title)
                 self.submissionDescList.append(submission.selftext)
                 self.submissionImageUrl.append(submission.url)
-                if submission.author.name is not None:
-                    self.submissionAuthorList.append(submission.author.name)
+                if submission.author is not None:
+                    if submission.author.name is not None:
+                        self.submissionAuthorList.append(submission.author.name)
+                    else:
+                        self.submissionAuthorList.append('[deleted]')
                 else:
                     self.submissionAuthorList.append('[deleted]')
                 if len(submission.title) > 70:
                     self.subWidgetList.append(IDWidget(submission.title[:70] + '...', parent=self.subredditBar))
                 else:
                     self.subWidgetList.append(IDWidget(submission.title))
+                self.upvoteList.append(submission.score)
+                self.downvoteList.append(submission.score * (100 - submission.upvote_ratio))
                 print()
                 self.i += 1
-
         except prawcore.exceptions.RequestException:
             self.wowSuchEmpty.setText('An error occurred - Read\noperation timed out')
             self.status.setText('Error - Timed out or sub does not exist')
