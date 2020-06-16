@@ -198,13 +198,12 @@ class MainWindow(QMainWindow):
         self.submissionUrl.setText('<a href=\"{}\">Link</a>'.format(self.submissionImageUrl[widgetNum]))
         self.submissionUrl.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.submissionUrl.setOpenExternalLinks(True)
-        try:
-            self.upvoteImg = QPixmap('/opt/angel-reddit/upvote.png')
-            self.upvote = QLabel(self.upvoteImg)
-            self.downvoteImg = QPixmap('/opt/angel-reddit/downvote.png')
-            self.downvote = QLabel(self.downvoteImg)
-        except:
-            self.upvote, self.downvote = QLabel('^\n|'), QLabel('|\nv')
+        self.upvoteImg = QPixmap('/opt/angel-reddit/upvote.png')
+        self.upvote = QLabel()
+        self.upvote.setPixmap(self.upvoteImg)
+        self.downvoteImg = QPixmap('/opt/angel-reddit/downvote.png')
+        self.downvote = QLabel()
+        self.downvote.setPixmap(self.downvoteImg)
         self.upScore = QLabel(str(self.upvoteList[widgetNum]))
         self.downScore = QLabel(str(self.downvoteList[widgetNum]))
         self.mainBody.addWidget(self.submissionTitle)
@@ -274,8 +273,9 @@ class MainWindow(QMainWindow):
                     self.subWidgetList.append(IDWidget(submission.title[:70] + '...', parent=self.subredditBar))
                 else:
                     self.subWidgetList.append(IDWidget(submission.title))
+                print(submission.upvote_ratio)
                 self.upvoteList.append(submission.score)
-                self.downvoteList.append(submission.score * (100 - submission.upvote_ratio))
+                self.downvoteList.append(round(submission.score * (1 - submission.upvote_ratio)))
                 print()
                 self.i += 1
         except prawcore.exceptions.RequestException:
