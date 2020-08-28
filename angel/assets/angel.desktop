@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Exec=/usr/local/bin/angel
+Icon=/opt/angel-reddit/angel.png
+Terminal=false
+Name=Angel
+GenericName=Reddit Browser
+Comment=A Reddit client for Linux
+Categories=Network;
