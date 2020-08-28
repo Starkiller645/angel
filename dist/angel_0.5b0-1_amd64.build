@@ -1,0 +1,68 @@
+ dpkg-buildpackage -us -uc -ui
+dpkg-buildpackage: info: source package angel
+dpkg-buildpackage: info: source version 0.5b0-1
+dpkg-buildpackage: info: source distribution UNRELEASED
+dpkg-buildpackage: info: source changed by root <>
+ dpkg-source --before-build .
+dpkg-buildpackage: info: host architecture amd64
+ fakeroot debian/rules clean
+dh clean --with python3 --buildsystem=pybuild
+   dh_auto_clean -O--buildsystem=pybuild
+I: pybuild base:217: python3.8 setup.py clean 
+running clean
+removing '/home/jacob/Documents/Developer/angel-0.5/dist/angel-0.5b0/.pybuild/cpython3_3.8/build' (and everything under it)
+/usr/lib/python3/dist-packages/setuptools/dist.py:473: UserWarning: Normalizing '0.5-beta' to '0.5b0'
+  warnings.warn(
+'build/bdist.linux-x86_64' does not exist -- can't clean it
+'build/scripts-3.8' does not exist -- can't clean it
+   dh_autoreconf_clean -O--buildsystem=pybuild
+   dh_clean -O--buildsystem=pybuild
+ dpkg-source -b .
+dpkg-source: info: using source format '3.0 (quilt)'
+dpkg-source: info: building angel using existing ./angel_0.5b0.orig.tar.gz
+dpkg-source: info: building angel in angel_0.5b0-1.debian.tar.xz
+dpkg-source: info: building angel in angel_0.5b0-1.dsc
+ debian/rules build
+dh build --with python3 --buildsystem=pybuild
+   dh_update_autotools_config -O--buildsystem=pybuild
+   dh_autoreconf -O--buildsystem=pybuild
+   dh_auto_configure -O--buildsystem=pybuild
+I: pybuild base:217: python3.8 setup.py config 
+running config
+/usr/lib/python3/dist-packages/setuptools/dist.py:473: UserWarning: Normalizing '0.5-beta' to '0.5b0'
+  warnings.warn(
+   dh_auto_build -O--buildsystem=pybuild
+I: pybuild base:217: /usr/bin/python3 setup.py build 
+running build
+running build_py
+creating /home/jacob/Documents/Developer/angel-0.5/dist/angel-0.5b0/.pybuild/cpython3_3.8/build/angel
+copying angel/errors.py -> /home/jacob/Documents/Developer/angel-0.5/dist/angel-0.5b0/.pybuild/cpython3_3.8/build/angel
+copying angel/__init__.py -> /home/jacob/Documents/Developer/angel-0.5/dist/angel-0.5b0/.pybuild/cpython3_3.8/build/angel
+creating /home/jacob/Documents/Developer/angel-0.5/dist/angel-0.5b0/.pybuild/cpython3_3.8/build/angel/assets
+copying angel/assets/downvote.png -> /home/jacob/Documents/Developer/angel-0.5/dist/angel-0.5b0/.pybuild/cpython3_3.8/build/angel/assets
+copying angel/assets/mask.png -> /home/jacob/Documents/Developer/angel-0.5/dist/angel-0.5b0/.pybuild/cpython3_3.8/build/angel/assets
+copying angel/assets/imagelink.png -> /home/jacob/Documents/Developer/angel-0.5/dist/angel-0.5b0/.pybuild/cpython3_3.8/build/angel/assets
+copying angel/assets/text.png -> /home/jacob/Documents/Developer/angel-0.5/dist/angel-0.5b0/.pybuild/cpython3_3.8/build/angel/assets
+copying angel/assets/link.png -> /home/jacob/Documents/Developer/angel-0.5/dist/angel-0.5b0/.pybuild/cpython3_3.8/build/angel/assets
+copying angel/assets/upvote.png -> /home/jacob/Documents/Developer/angel-0.5/dist/angel-0.5b0/.pybuild/cpython3_3.8/build/angel/assets
+copying angel/assets/default.png -> /home/jacob/Documents/Developer/angel-0.5/dist/angel-0.5b0/.pybuild/cpython3_3.8/build/angel/assets
+copying angel/assets/angel.desktop -> /home/jacob/Documents/Developer/angel-0.5/dist/angel-0.5b0/.pybuild/cpython3_3.8/build/angel/assets
+copying angel/assets/angel.png -> /home/jacob/Documents/Developer/angel-0.5/dist/angel-0.5b0/.pybuild/cpython3_3.8/build/angel/assets
+copying angel/assets/PyInstaller-3.6.tar.gz -> /home/jacob/Documents/Developer/angel-0.5/dist/angel-0.5b0/.pybuild/cpython3_3.8/build/angel/assets
+copying angel/assets/praw.ini -> /home/jacob/Documents/Developer/angel-0.5/dist/angel-0.5b0/.pybuild/cpython3_3.8/build/angel/assets
+copying angel/assets/angel.ico -> /home/jacob/Documents/Developer/angel-0.5/dist/angel-0.5b0/.pybuild/cpython3_3.8/build/angel/assets
+/usr/lib/python3/dist-packages/setuptools/dist.py:473: UserWarning: Normalizing '0.5-beta' to '0.5b0'
+  warnings.warn(
+   dh_auto_test -O--buildsystem=pybuild
+I: pybuild base:217: cd /home/jacob/Documents/Developer/angel-0.5/dist/angel-0.5b0/.pybuild/cpython3_3.8/build; python3.8 -m unittest discover -v 
+qt.qpa.xcb: could not connect to display 
+qt.qpa.plugin: Could not load the Qt platform plugin "xcb" in "" even though it was found.
+This application failed to start because no Qt platform plugin could be initialized. Reinstalling the application may fix this problem.
+
+Available platform plugins are: eglfs, linuxfb, minimal, minimalegl, offscreen, vnc, wayland-egl, wayland, wayland-xcomposite-egl, wayland-xcomposite-glx, xcb.
+
+Aborted (core dumped)
+E: pybuild pybuild:341: test: plugin distutils failed with: exit code=134: cd /home/jacob/Documents/Developer/angel-0.5/dist/angel-0.5b0/.pybuild/cpython3_3.8/build; python3.8 -m unittest discover -v 
+dh_auto_test: error: pybuild --test -i python{version} -p 3.8 returned exit code 13
+make: *** [debian/rules:9: build] Error 25
+dpkg-buildpackage: error: debian/rules build subprocess returned exit status 2

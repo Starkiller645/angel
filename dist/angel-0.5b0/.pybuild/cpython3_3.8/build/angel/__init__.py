@@ -181,7 +181,7 @@ class MainWindow(QMainWindow):
         self.submissionBody.setStyleSheet('font-size: 20px;')
         self.submissionBody.setText(self.submissionDescList[widgetNum])
         self.submissionBody.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        if 'i.redd.it' in self.submissionImageUrl[widgetNum] or 'imgur.com' in self.submissionImageUrl[widgetNum]:
+        if 'i.redd.it' in self.submissionImageUrl[widgetNum] or 'i.imgur.com' in self.submissionImageUrl[widgetNum]:
             submissionImage = QLabel()
             preimg = QPixmap(self.fetchImage(self.submissionImageUrl[widgetNum]))
             img = preimg.scaledToWidth(500)
@@ -197,20 +197,6 @@ class MainWindow(QMainWindow):
         self.submissionUrl.setStyleSheet('font-size: 18px;')
         self.submissionUrl.setText('<a href=\"{}\">Link</a>'.format(self.submissionImageUrl[widgetNum]))
         self.submissionUrl.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        self.submissionScore = QWidget()
-
-        # Set up Score (Combined up- and downvotes) widget, to be able to view upvotes
-        self.scoreLabel = QLabel()
-        self.scorePixmap = QPixmap("/opt/angel-reddit/upvote.png")
-        self.scoreLabel.setPixmap(self.scorePixmap)
-        self.scoreLayout = QHBoxLayout()
-        self.scre = QLabel()
-        self.scre.setText("<b>{}</b>".format(self.submissionScoreList[widgetNum]))
-        self.scoreLayout.addWidget(self.scoreLabel)
-        self.scoreLayout.addWidget(self.scre)
-        self.scoreLabel.setLayout(self.scoreLayout)
-
-
         self.submissionUrl.setOpenExternalLinks(True)
         self.mainBody.addWidget(self.submissionTitle)
         self.mainBody.addWidget(self.submissionAuthor)
@@ -222,7 +208,7 @@ class MainWindow(QMainWindow):
         self.urlLayout.addWidget(self.submissionUrl)
         self.urlBar.setLayout(self.urlLayout)
         self.viewLayout.addWidget(self.scroll)
-        self.viewLayout.addWidget(self.score)
+        self.viewLayout.addWidget(self.urlBar)
         self.viewWidget.setLayout(self.viewLayout)
         self.mainLayout.addWidget(self.viewWidget)
         self.viewWidget.show()
@@ -255,7 +241,7 @@ class MainWindow(QMainWindow):
         self.status.setText('Retrieving submissions')
         time.sleep(0.5)
         self.sub = self.reddit.subreddit(self.searchSubs.text()[2:])
-        self.submissionIDList, self.submissionTitleList, self.submissionDescList, self.submissionImageUrl, self.subWidgetList, self.submissionAuthorList, self.submissionScoreList = [], [], [], [], [], [], []
+        self.submissionIDList, self.submissionTitleList, self.submissionDescList, self.submissionImageUrl, self.subWidgetList, self.submissionAuthorList = [], [], [], [], [], []
         self.i = 0
         try:
             for submission in self.sub.hot(limit=100):
@@ -263,7 +249,6 @@ class MainWindow(QMainWindow):
                 self.submissionTitleList.append(submission.title)
                 self.submissionDescList.append(submission.selftext)
                 self.submissionImageUrl.append(submission.url)
-                self.submissionScoreList.append(submission.score)
                 if submission.author is not None:
                     self.submissionAuthorList.append(submission.author.name)
                 else:

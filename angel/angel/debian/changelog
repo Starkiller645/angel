@@ -1,0 +1,5 @@
+angel (0.4.3) UNRELEASED; urgency=medium
+
+  * Fixed some errors with DPKG install of package. (Closes: #XXXXXX)
+
+ -- Jacob Tye <jacob.tye@outlook.com>  Tue, 16 Jun 2020 14:19:00 +0100
