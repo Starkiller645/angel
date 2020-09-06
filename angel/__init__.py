@@ -5,6 +5,8 @@ import time
 import praw
 import prawcore
 import os
+import webbrowser
+import socket
 from PIL import Image, ImageOps
 import requests
 import io
@@ -54,7 +56,7 @@ class MainWindow(QMainWindow):
         submissionImage = None
         self.resize(1080, 640)
         label = QLabel()
-        self.setWindowTitle('Angel v0.4-beta')
+        self.setWindowTitle('Angel v0.5-beta')
         self.mainWidget = QWidget()
 
         # Setup
@@ -66,7 +68,7 @@ class MainWindow(QMainWindow):
 
         loginBox.width = 300
 
-        # Create snootux pixmap
+        # Create angel pixmap
         pixmap = QPixmap('/opt/angel-reddit/angel.png')
         pixmap = pixmap.scaled(300, 300, Qt.KeepAspectRatio)
         label.setPixmap(pixmap)
@@ -89,21 +91,26 @@ class MainWindow(QMainWindow):
         self.passwd.setEchoMode(QLineEdit.Password)
         self.passwd.setFixedWidth(300)
         self.passwd.setAlignment(Qt.AlignCenter)
+        self.login = QPushButton()
+        self.login.setFixedWidth(300)
+        self.login.setFixedHeight(80)
+        self.redditIcon = QIcon("/opt/angel-reddit/reddit.png")
+        self.login.setIconSize(QSize(300, 85))
+        self.login.setIcon(self.redditIcon)
         self.enterBox = QVBoxLayout()
-        self.enter = QPushButton('Enter')
-        self.enter.setFixedWidth(50)
+        self.enter = QPushButton('Browse without login')
+        self.enter.setFixedWidth(200)
         self.noLogin = QRadioButton('Browse without login')
         loginBox.addWidget(self.title)
-        loginBox.addWidget(self.uname)
-        loginBox.addWidget(self.passwd)
-        loginBox.addWidget(self.noLogin)
+        loginBox.addWidget(self.login)
         self.enterBox.addWidget(self.enter)
         self.enterBox.setAlignment(Qt.AlignCenter)
         self.enterWidget = QWidget()
         self.enterWidget.setLayout(self.enterBox)
         loginBox.addWidget(self.enterWidget)
         # Qt5 connect syntax is object.valueThatIsConnected.connect(func.toConnectTo)
-        self.enter.clicked.connect(self.initReddit)
+        self.enter.clicked.connect(self.initAnonReddit)
+        self.login.clicked.connect(self.initReddit)
         # Set selected widget to be central, taking up the whole
         # window by default
         self.mainWidget.setLayout(loginBox)
@@ -111,6 +118,19 @@ class MainWindow(QMainWindow):
 
     def onButtonPress(self, s):
         print('click', s)
+
+    def openAuthUrl(self):
+        webbrowser.open(self.reddit.auth.url(["identity"], "...", "permanent"))
+
+    # Define a function to open a web socket to receive the access token from OAuth
+    def receiveConnection(self):
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server.bind(("localhost", 8080))
+        server.listen(1)
+        client = server.accept()[0]
+        server.close()
+        return client
 
     def fetchImage(self, url):
         image = requests.get(url)
@@ -155,6 +175,7 @@ class MainWindow(QMainWindow):
         return
 
     def view(self):
+        print('[DBG] Started view function')
         print(self.sender())
         widgetNum = self.sender().getID()
         self.mainLayout.removeWidget(self.viewWidget)
@@ -167,48 +188,56 @@ class MainWindow(QMainWindow):
         self.mainBodyWidget = QWidget()
         self.urlLayout = QHBoxLayout()
         self.urlBar = QWidget()
+        print('[DBG] Created viewWidget and layout and scroll widget')
         self.submissionTitle = QLabel()
         self.submissionTitle.setWordWrap(True)
         self.submissionTitle.setStyleSheet('font-size: 42px; font-weight: bold;')
         self.submissionTitle.setText(self.submissionTitleList[widgetNum])
         self.submissionTitle.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        print('[DBG] Created submission title widget')
         self.submissionAuthor = QLabel()
         self.submissionAuthor.setStyleSheet('font-size: 30px; font-style: italic;')
         self.submissionAuthor.setText('u/' + self.submissionAuthorList[widgetNum])
         self.submissionAuthor.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        print('[DBG] Created submission author widget')
         self.submissionBody = QLabel()
         self.submissionBody.setWordWrap(True)
         self.submissionBody.setStyleSheet('font-size: 20px;')
         self.submissionBody.setText(self.submissionDescList[widgetNum])
         self.submissionBody.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        print('[DBG] Created submission body widget')
         if 'i.redd.it' in self.submissionImageUrl[widgetNum] or 'imgur.com' in self.submissionImageUrl[widgetNum]:
             submissionImage = QLabel()
             preimg = QPixmap(self.fetchImage(self.submissionImageUrl[widgetNum]))
             img = preimg.scaledToWidth(500)
             submissionImage.setPixmap(img)
+            print('[DBG] Created pixmap for image')
         elif 'reddit.com' not in self.submissionImageUrl[widgetNum]:
             submissionImage = QLabel('<a href="{0}" >{0}</a>'.format(self.submissionImageUrl[widgetNum]))
             submissionImage.setOpenExternalLinks(True)
             submissionImage.setStyleSheet('font-size: 26px; color: skyblue;')
         else:
             submissionImage = None
+            print('[DBG] Set submissionImage to None')
         self.submissionUrl = QLabel()
         self.submissionUrl.setWordWrap(True)
         self.submissionUrl.setStyleSheet('font-size: 18px;')
         self.submissionUrl.setText('<a href=\"{}\">Link</a>'.format(self.submissionImageUrl[widgetNum]))
         self.submissionUrl.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        self.submissionScore = QWidget()
+        print('[DBG] Created submission URL widget')
+        #self.submissionScore = QWidget()
 
         # Set up Score (Combined up- and downvotes) widget, to be able to view upvotes
-        self.scoreLabel = QLabel()
-        self.scorePixmap = QPixmap("/opt/angel-reddit/upvote.png")
-        self.scoreLabel.setPixmap(self.scorePixmap)
-        self.scoreLayout = QHBoxLayout()
-        self.scre = QLabel()
-        self.scre.setText("<b>{}</b>".format(self.submissionScoreList[widgetNum]))
-        self.scoreLayout.addWidget(self.scoreLabel)
-        self.scoreLayout.addWidget(self.scre)
-        self.scoreLabel.setLayout(self.scoreLayout)
+        #self.scoreLabel = QLabel()
+        #self.scorePixmap = QPixmap("/opt/angel-reddit/upvote.png")
+        #self.scoreLabel.setPixmap(self.scorePixmap)
+        #self.scoreLayout = QHBoxLayout()
+        #self.scre = QLabel()
+        #self.scre.setText("<b>{}</b>".format(self.submissionScoreList[widgetNum]))
+        #self.scoreLayout.addWidget(self.scoreLabel)
+        #self.scoreLayout.addWidget(self.scre)
+        #self.scoreLabel.setLayout(self.scoreLayout)
+        print('[DBG] Created score widget')
 
 
         self.submissionUrl.setOpenExternalLinks(True)
@@ -222,10 +251,12 @@ class MainWindow(QMainWindow):
         self.urlLayout.addWidget(self.submissionUrl)
         self.urlBar.setLayout(self.urlLayout)
         self.viewLayout.addWidget(self.scroll)
-        self.viewLayout.addWidget(self.score)
+        #self.viewLayout.addWidget(self.score)
         self.viewWidget.setLayout(self.viewLayout)
         self.mainLayout.addWidget(self.viewWidget)
+        print('[DBG] Added widgets to mainLayout and viewWidget')
         self.viewWidget.show()
+        print('[DBG] Showing viewWidget')
 
     def showSubDesc(self):
         self.mainLayout.removeWidget(self.viewWidget)
@@ -315,45 +346,41 @@ class MainWindow(QMainWindow):
             time.sleep(0.01)
         self.status.setText('Connected to Reddit')
 
-    def initReddit(self):
-        username = self.uname.text()
-        password = self.passwd.text()
-
+    def initAnonReddit(self):
         # Instantiate Reddit object
         loggedIn = False
-        ready = False
-        while not ready:
-            if self.noLogin.isChecked():
-                self.title.setText('Attempting to connect to reddit')
-                self.reddit = praw.Reddit(redirect_uri="http://localhost:8080", client_id="FODiLQuVNlDa3g", client_secret=None, user_agent="RedditTux - A Reddit Client for Linux")
-            if self.reddit.subreddit('announcements') is not None:
-                self.title.setText('Success! Connected to Reddit')
-                time.sleep(0.5)
-                ready = True
-                break
-            else:
-                self.title.setText('Failed to connect - program error')
-                break
-                self.title.setText('Attempting to connect to Reddit')
-                self.reddit = praw.Reddit(client_id="FODiLQuVNlDa3g", client_secret=None, redirect_uri="http://localhost:8080", user_agent="ReddiTux - A Reddit Client for Linux", username="{}".format(username), password="{}".format(password))
-                print(self.reddit.user.me())
-            if self.reddit.user.me() == username:
-                self.title.setText('Success! Connected to Reddit')
-                time.sleep(0.5)
-                loggedIn = True
-                ready = True
-                break
-            else:
-                self.title.setText('Failed to connect. Check your details')
-                break
+        self.title.setText('Attempting to connect to reddit')
+        self.reddit = praw.Reddit(redirect_uri="http://localhost:8080", client_id="Jq0BiuUeIrsr3A", client_secret=None, user_agent="Angel for Reddit v0.5 (by /u/Starkiller645)")
+        print(self.reddit)
+        print(self.reddit.auth.url(["identity", "read", "mysubreddits", "history"], "...", "permanent"))
+        self.initUI()
 
+    def initReddit(self):
+        self.reddit = praw.Reddit(redirect_uri="http://localhost:8080", client_id="Jq0BiuUeIrsr3A", client_secret=None, user_agent="Angel for Reddit v0.5 (by /u/Starkiller645)")
+        webbrowser.open(self.reddit.auth.url(["identity", "read", "mysubreddits", "history"], "...", "permanent"))
+        self.client = self.receiveConnection()
+        data = self.client.recv(1024).decode("utf-8")
+        param_tokens = data.split(" ", 2)[1].split("?", 1)[1].split("&")
+        params = {
+        key: value for (key, value) in [token.split("=") for token in param_tokens]
+        }
+        self.code = self.reddit.auth.authorize(params["code"])
+        print(self.code)
+        print(self.reddit.user.me())
+        self.redditUname = self.reddit.user.me()
+        self.initUI()
+
+    def initUI(self):
         self.searchSubs = QLineEdit(placeholderText="r/subreddit")
         self.searchButton = QPushButton('Go')
         self.searchSubs.setMaximumWidth(500)
         self.searchSubs.setMinimumWidth(500)
         self.searchButton.setMaximumWidth(40)
         self.toolbar = QToolBar()
-        self.status = QLineEdit('Connected to Reddit')
+        if self.reddit.user.me() is not None:
+            self.status = QLineEdit('/u/{}'.format(self.redditUname))
+        else:
+            self.status = QLineEdit('Connected to Reddit')
         self.status.setReadOnly(True)
         self.status.setAlignment(Qt.AlignRight)
         self.status.setMaximumWidth(175)
