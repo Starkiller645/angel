@@ -19,6 +19,18 @@ try:
 except ImportError:
     pass
 
+# Get OS-specific env variables
+envHome = os.environ.get("HOME", "")
+
+# Initialise praw.ini file if it does not exist
+if os.isfile("{}/.config/praw.ini".format(envHome)):
+    pass
+else:
+    prawini = open("{}/.config/praw.ini".format(envHome), "w+")
+    prawini.write('[angel]')
+    prawini.write('client_id=Jq0BiuUeIrsr3A\nclient_secret=None\nredirect_uri=http://localhost:8080')
+    prawini.close()
+
 # Start QApplication instance
 app = QApplication(sys.argv)
 app.setWindowIcon(QIcon('/opt/angel-reddit/angel.ico'))
@@ -275,6 +287,8 @@ class MainWindow(QMainWindow):
         self.viewWidget.show()
 
     def switchSub(self):
+        self.status.setText('Retrieving submissions')
+        time.sleep(0.5)
         self.textIcon = QIcon('/opt/angel-reddit/text.png')
         self.linkIcon = QIcon('/opt/angel-reddit/link.png')
         self.imageIcon = QIcon('/opt/angel-reddit/imagelink.png')
@@ -283,8 +297,6 @@ class MainWindow(QMainWindow):
         self.clearLayout(self.subList)
         self.subList = QVBoxLayout()
         self.subredditBar = QWidget()
-        self.status.setText('Retrieving submissions')
-        time.sleep(0.5)
         self.sub = self.reddit.subreddit(self.searchSubs.text()[2:])
         self.submissionIDList, self.submissionTitleList, self.submissionDescList, self.submissionImageUrl, self.subWidgetList, self.submissionAuthorList, self.submissionScoreList = [], [], [], [], [], [], []
         self.i = 0
@@ -344,7 +356,7 @@ class MainWindow(QMainWindow):
             self.subScroll.setWidgetResizable(True)
             self.subWidgetList[self.i].show()
             time.sleep(0.01)
-        self.status.setText('Connected to Reddit')
+        self.status.setText('/u/' + str(self.redditUname))
 
     def initAnonReddit(self):
         # Instantiate Reddit object
@@ -366,6 +378,7 @@ class MainWindow(QMainWindow):
         }
         self.code = self.reddit.auth.authorize(params["code"])
         print(self.code)
+
         print(self.reddit.user.me())
         self.redditUname = self.reddit.user.me()
         self.initUI()
