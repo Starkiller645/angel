@@ -1,6 +1,6 @@
-# angel
+# Angel
 
-Angel - a Reddit client for the Linux desktop, built use PyQt5
+Angel - a Reddit client for the Linux desktop, built using PyQt5
 
 ![Screenshot of login screen](https://github.com/HashBangStudios/angel/raw/master/demo/login-demo.png)
 
@@ -35,4 +35,5 @@ To uninstall:
 # Requirements
 These should be the same for all distros, but open an issue if there is a difference
 
-`python3 python3-praw python3-pillow python3-pyqt5 python3-requests`
+* Distro packages: `python3 python3-praw python3-pillow python3-pyqt5 python3-requests`
+* PyPi packages: `setuptools`
