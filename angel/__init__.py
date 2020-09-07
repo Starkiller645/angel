@@ -19,8 +19,18 @@ try:
 except ImportError:
     pass
 
+# Define global variable for environment
+# Check if on Windows or UNIX-Like (Darwin or Linux)
+if os.name != "posix":
+    isWindows = True
+else:
+    isWindows = False
+
 def initPrawINI():
-    prawini = open("{}/.config/praw.ini".format(envHome), "w+")
+    if isWindows:
+        prawini = open("{}\\Angel\\praw.ini".format(os.environ.get("APPDATA", "")))
+    else:
+        prawini = open("{}/.config/praw.ini".format(envHome), "w+")
     prawini.write('[angel]\n')
     prawini.write('client_id=Jq0BiuUeIrsr3A\nclient_secret=None\nredirect_uri=http://localhost:8080\nuser_agent=Angel for Reddit (by /u/Starkiller645)')
     prawini.close()
@@ -28,23 +38,37 @@ def initPrawINI():
 
 # Get OS-specific env variables
 envHome = os.environ.get("HOME", "")
+appData = os.environ.get("APPDATA", "")
 
 # Initialise praw.ini file if it does not exist
-if os.path.exists("{}/.config/praw.ini".format(envHome)):
-    with open("{}/.config/praw.ini".format(envHome)) as prawini:
-        if "[DEFAULT]" in prawini.read():
-            prawini.close()
-            os.remove("{}/.config/praw.ini".format(envHome))
-            initPrawINI()
-        else:
-            prawiniExists = True
+if os.path.exists("{}/.config/praw.ini".format(envHome)) or os.path.exists("{}\Angel\\\praw.ini".format(appData)):
+    if isWindows:
+        with open("{}\\Angel\\praw.ini".format(appData)) as prawini:
+            if "[DEFAULT]" in prawini.read():
+                prawini.close()
+                os.remove("{}\\Angel\\praw.ini".format(appData))
+                initPrawINI()
+            else:
+                prawiniExists = True
+    else:
+        with open("{}/.config/praw.ini".format(envHome)) as prawini:
+            if "[DEFAULT]" in prawini.read():
+                prawini.close()
+                os.remove("{}/.config/praw.ini".format(envHome))
+                initPrawINI()
+            else:
+                prawiniExists = True
 else:
     initPrawINI()
 
 
 # Start QApplication instance
 app = QApplication(sys.argv)
-app.setWindowIcon(QIcon('/opt/angel-reddit/angel.ico'))
+if isWindows:
+    app.setWindowIcon(QIcon('{}\\Angel\\angel.ico'.format(appData)))
+else:
+    app.setWindowIcon(QIcon('/opt/angel-reddit/angel.ico'))
+
 
 # Create a custom widget class with an implementation of a unique identifier for the submission widgets
 class IDWidget(QCommandLinkButton):
@@ -68,7 +92,10 @@ class RequestTimeOut(QWidget):
         self.headerWidget = QLabel()
         self.headerWidget.setStyleSheet('font-size: 40px;')
         self.headerWidget.setText('<b>Error</b> Request timed out')
-        self.image = QPixmap('/opt/angel-reddit/error408')
+        if isWindows:
+            self.image = QPixmap('{}\\Angel\\error408'.format(appData))
+        else:
+            self.image = QPixmap('/opt/angel-reddit/error408')
         self.imageWidget.setPixmap(self.image)
 
 
@@ -84,7 +111,10 @@ class MainWindow(QMainWindow):
 
         # Setup
         scriptDir = os.path.dirname(os.path.realpath(__file__))
-        self.setWindowIcon(QIcon('/opt/angel-reddit/angel.ico'))
+        if isWindows:
+            self.setWindowIcon(QIcon('{}\\Angel\\angel.ico'.format(appData)))
+        else:
+            self.setWindowIcon(QIcon('/opt/angel-reddit/angel.ico'))
 
         # Create login boxes
         loginBox = QVBoxLayout()
@@ -92,7 +122,10 @@ class MainWindow(QMainWindow):
         loginBox.width = 300
 
         # Create angel pixmap
-        pixmap = QPixmap('/opt/angel-reddit/angel.png')
+        if isWindows:
+            pixmap = QPixmap('{}\\Angel\\angel.png'.format(appData))
+        else:
+            pixmap = QPixmap('/opt/angel-reddit/angel.png')
         pixmap = pixmap.scaled(300, 300, Qt.KeepAspectRatio)
         label.setPixmap(pixmap)
         label.resize(300, 300)
@@ -106,45 +139,89 @@ class MainWindow(QMainWindow):
 
         # Create login fields and enter button
         self.title = QLabel('Logging in...')
-        with open("{}/.config/praw.ini".format(envHome), "rt") as prawini:
-            if "refresh_token" in prawini.read():
-                self.reddit = praw.Reddit("angel")
-                self.redditUname = self.reddit.user.me()
-                prawini.close()
-                self.initUI()
-            else:
-                self.title.setAlignment(Qt.AlignCenter)
-                self.uname = QLineEdit(placeholderText='Username')
-                self.uname.setFixedWidth(300)
-                self.uname.setAlignment(Qt.AlignCenter)
-                self.passwd = QLineEdit(placeholderText='Password')
-                self.passwd.setEchoMode(QLineEdit.Password)
-                self.passwd.setFixedWidth(300)
-                self.passwd.setAlignment(Qt.AlignCenter)
-                self.login = QPushButton()
-                self.login.setFixedWidth(300)
-                self.login.setFixedHeight(80)
-                self.redditIcon = QIcon("/opt/angel-reddit/reddit.png")
-                self.login.setIconSize(QSize(300, 85))
-                self.login.setIcon(self.redditIcon)
-                self.enterBox = QVBoxLayout()
-                self.enter = QPushButton('Browse without login')
-                self.enter.setFixedWidth(200)
-                self.noLogin = QRadioButton('Browse without login')
-                loginBox.addWidget(self.title)
-                loginBox.addWidget(self.login)
-                self.enterBox.addWidget(self.enter)
-                self.enterBox.setAlignment(Qt.AlignCenter)
-                self.enterWidget = QWidget()
-                self.enterWidget.setLayout(self.enterBox)
-                loginBox.addWidget(self.enterWidget)
-                # Qt5 connect syntax is object.valueThatIsConnected.connect(func.toConnectTo)
-                self.enter.clicked.connect(self.initAnonReddit)
-                self.login.clicked.connect(self.initReddit)
-                # Set selected widget to be central, taking up the whole
-                # window by default
-                self.mainWidget.setLayout(loginBox)
-                self.setCentralWidget(self.mainWidget)
+        if isWindows:
+            with open("{}/praw.ini".format(appData), "rt") as prawini:
+                if "refresh_token" in prawini.read():
+                    self.reddit = praw.Reddit("angel")
+                    self.redditUname = self.reddit.user.me()
+                    prawini.close()
+                    self.initUI()
+                else:
+                    self.title.setAlignment(Qt.AlignCenter)
+                    self.uname = QLineEdit(placeholderText='Username')
+                    self.uname.setFixedWidth(300)
+                    self.uname.setAlignment(Qt.AlignCenter)
+                    self.passwd = QLineEdit(placeholderText='Password')
+                    self.passwd.setEchoMode(QLineEdit.Password)
+                    self.passwd.setFixedWidth(300)
+                    self.passwd.setAlignment(Qt.AlignCenter)
+                    self.login = QPushButton()
+                    self.login.setFixedWidth(300)
+                    self.login.setFixedHeight(80)
+                    if isWindows:
+                        self.redditIcon = QIcon("{}\\Angel\\reddit.png".format(appData))
+                    else:
+                        self.redditIcon = QIcon("/opt/angel-reddit/reddit.png")
+                    self.login.setIconSize(QSize(300, 85))
+                    self.login.setIcon(self.redditIcon)
+                    self.enterBox = QVBoxLayout()
+                    self.enter = QPushButton('Browse without login')
+                    self.enter.setFixedWidth(200)
+                    self.noLogin = QRadioButton('Browse without login')
+                    loginBox.addWidget(self.title)
+                    loginBox.addWidget(self.login)
+                    self.enterBox.addWidget(self.enter)
+                    self.enterBox.setAlignment(Qt.AlignCenter)
+                    self.enterWidget = QWidget()
+                    self.enterWidget.setLayout(self.enterBox)
+                    loginBox.addWidget(self.enterWidget)
+                    # Qt5 connect syntax is object.valueThatIsConnected.connect(func.toConnectTo)
+                    self.enter.clicked.connect(self.initAnonReddit)
+                    self.login.clicked.connect(self.initReddit)
+                    # Set selected widget to be central, taking up the whole
+                    # window by default
+                    self.mainWidget.setLayout(loginBox)
+                    self.setCentralWidget(self.mainWidget)
+        else:
+            with open("{}/.config/praw.ini".format(envHome), "rt") as prawini:
+                if "refresh_token" in prawini.read():
+                    self.reddit = praw.Reddit("angel")
+                    self.redditUname = self.reddit.user.me()
+                    prawini.close()
+                    self.initUI()
+                else:
+                    self.title.setAlignment(Qt.AlignCenter)
+                    self.uname = QLineEdit(placeholderText='Username')
+                    self.uname.setFixedWidth(300)
+                    self.uname.setAlignment(Qt.AlignCenter)
+                    self.passwd = QLineEdit(placeholderText='Password')
+                    self.passwd.setEchoMode(QLineEdit.Password)
+                    self.passwd.setFixedWidth(300)
+                    self.passwd.setAlignment(Qt.AlignCenter)
+                    self.login = QPushButton()
+                    self.login.setFixedWidth(300)
+                    self.login.setFixedHeight(80)
+                    self.redditIcon = QIcon("/opt/angel-reddit/reddit.png")
+                    self.login.setIconSize(QSize(300, 85))
+                    self.login.setIcon(self.redditIcon)
+                    self.enterBox = QVBoxLayout()
+                    self.enter = QPushButton('Browse without login')
+                    self.enter.setFixedWidth(200)
+                    self.noLogin = QRadioButton('Browse without login')
+                    loginBox.addWidget(self.title)
+                    loginBox.addWidget(self.login)
+                    self.enterBox.addWidget(self.enter)
+                    self.enterBox.setAlignment(Qt.AlignCenter)
+                    self.enterWidget = QWidget()
+                    self.enterWidget.setLayout(self.enterBox)
+                    loginBox.addWidget(self.enterWidget)
+                    # Qt5 connect syntax is object.valueThatIsConnected.connect(func.toConnectTo)
+                    self.enter.clicked.connect(self.initAnonReddit)
+                    self.login.clicked.connect(self.initReddit)
+                    # Set selected widget to be central, taking up the whole
+                    # window by default
+                    self.mainWidget.setLayout(loginBox)
+                    self.setCentralWidget(self.mainWidget)
 
     def onButtonPress(self, s):
         print('click', s)
@@ -166,8 +243,12 @@ class MainWindow(QMainWindow):
         image = requests.get(url)
         imageBytes = io.BytesIO(image.content)
         image = Image.open(imageBytes)
-        image.save('/opt/angel-reddit/temp/.img.{}'.format(image.format.lower()))
-        return '/opt/angel-reddit/temp/.img.{}'.format(image.format.lower())
+        if isWindows:
+            image.save('{0}\\Angel\\temp\\.img.{1}'.format(appData, image.format.lower()))
+            return '{0}\\Angel\\temp\\.img.{1}'.format(appData, image.format.lower())
+        else:
+            image.save('/opt/angel-reddit/temp/.img.{}'.format(image.format.lower()))
+            return '/opt/angel-reddit/temp/.img.{}'.format(image.format.lower())
 
     def resourcePath(self, relative):
         return os.path.join(os.environ.get("_MEIPASS2", os.pathdef))
@@ -176,25 +257,39 @@ class MainWindow(QMainWindow):
         image = requests.get(url)
         imageBytes = io.BytesIO(image.content)
         image = Image.open(imageBytes)
-        image.save('/opt/angel-reddit/temp/.img.{}'.format(image.format))
-        return '/opt/angel-reddit/temp/.img.{}'.format((image.format).abspath("."), relative)
+        if isWindows:
+            image.save('{0}\\Angel\\temp\\.img.{1}'.format(appData, image.format.lower()))
+            return '{0}\\Angel\\temp\\.img.{1}'.format(appData, (image.format).abspath("."), relative)
+        else:
+            image.save('/opt/angel-reddit/temp/.img.{}'.format(image.format))
+            return '/opt/angel-reddit/temp/.img.{}'.format((image.format).abspath("."), relative)
 
     def clearLayout(self, layout):
         for i in reversed(range(layout.count())):
             layout.itemAt(i).widget().deleteLater()
 
     def getSubIcon(self, sub):
-        mask = Image.open('/opt/angel-reddit/mask.png').convert('L')
+        if isWindows:
+            mask = Image.open('{}\\Angel\\mask.png'.format(appData)).convert('L')
+        else:
+            mask = Image.open('/opt/angel-reddit/mask.png').convert('L')
         if 'http' in sub.icon_img:
             image = requests.get(sub.icon_img)
             imageBytes = io.BytesIO(image.content)
             image = Image.open(imageBytes)
         else:
-            image = Image.open('/opt/angel-reddit/default.png')
+            if isWindows:
+                image = Image.open('{}\\Angel\\default.png'.format(appData))
+            else:
+                image = Image.open('/opt/angel-reddit/default.png')
         output = ImageOps.fit(image, mask.size, centering=(0.5, 0.5))
         output.putalpha(mask)
-        output.save('/opt/angel-reddit/temp/.subimg.png')
-        return '/opt/angel-reddit/temp/.subimg.png'
+        if isWindows:
+            output.save('{}\\Angel\\temp\\.subimg.png'.format(appData))
+            return '{}\\Angel\\temp\\.subimg.png'.format(appData)
+        else:
+            output.save('/opt/angel-reddit/temp/.subimg.png')
+            return '/opt/angel-reddit/temp/.subimg.png'
 
     def setSubMeta(self, sub):
         imgPath = self.getSubIcon(sub)
@@ -312,9 +407,14 @@ class MainWindow(QMainWindow):
         time.sleep(0.5)
 
         # Set up icons for the various post types
-        self.textIcon = QIcon('/opt/angel-reddit/text.png')
-        self.linkIcon = QIcon('/opt/angel-reddit/link.png')
-        self.imageIcon = QIcon('/opt/angel-reddit/imagelink.png')
+        if isWindows:
+            self.textIcon = QIcon('{}\\Angel\\text.png')
+            self.linkIcon = QIcon('{}\\Angel\\link.png')
+            self.imageIcon = QIcon('{}\\Angel\\imagelink.png')
+        else:
+            self.textIcon = QIcon('/opt/angel-reddit/text.png')
+            self.linkIcon = QIcon('/opt/angel-reddit/link.png')
+            self.imageIcon = QIcon('/opt/angel-reddit/imagelink.png')
         if self.centralWidget() != self.window:
             self.setCentralWidget(self.window)
         self.clearLayout(self.subList)
@@ -417,8 +517,12 @@ class MainWindow(QMainWindow):
         print(self.code)
 
         # Add refresh token to praw.ini
-        with open("{}/.config/praw.ini".format(envHome), "a") as prawini:
-            prawini.write('\nrefresh_token={}'.format(self.code))
+        if isWindows:
+            with open("{}\\Angel\\praw.ini".format(appData), "a") as prawini:
+                prawini.write('\nrefresh_token={}'.format(self.code))
+        else:
+            with open("{}/.config/praw.ini".format(envHome), "a") as prawini:
+                prawini.write('\nrefresh_token={}'.format(self.code))
 
         # Initilise UI and assign value to redditUname
         self.redditUname = self.reddit.user.me()
@@ -456,7 +560,10 @@ class MainWindow(QMainWindow):
         self.spacer1.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.spacer2.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.subIcon = QLabel()
-        self.subIconPixmap = QPixmap('/opt/angel-linux/default.png')
+        if isWindows:
+            self.subIconPixmap = QPixmap('{}\\Angel\\default.png'.format(appData))
+        else:
+            self.subIconPixmap = QPixmap('/opt/angel-reddit/default.png')
         self.subIcon.setPixmap(self.subIconPixmap)
         self.subIcon.show()
         self.subHeader = QLabel('r/none')
