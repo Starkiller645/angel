@@ -19,17 +19,28 @@ try:
 except ImportError:
     pass
 
+def initPrawINI():
+    prawini = open("{}/.config/praw.ini".format(envHome), "w+")
+    prawini.write('[angel]\n')
+    prawini.write('client_id=Jq0BiuUeIrsr3A\nclient_secret=None\nredirect_uri=http://localhost:8080\nuser_agent=Angel for Reddit (by /u/Starkiller645)')
+    prawini.close()
+    prawiniExists = True
+
 # Get OS-specific env variables
 envHome = os.environ.get("HOME", "")
 
 # Initialise praw.ini file if it does not exist
-if os.isfile("{}/.config/praw.ini".format(envHome)):
-    pass
+if os.path.exists("{}/.config/praw.ini".format(envHome)):
+    with open("{}/.config/praw.ini".format(envHome)) as prawini:
+        if "[DEFAULT]" in prawini.read():
+            prawini.close()
+            os.remove("{}/.config/praw.ini".format(envHome))
+            initPrawINI()
+        else:
+            prawiniExists = True
 else:
-    prawini = open("{}/.config/praw.ini".format(envHome), "w+")
-    prawini.write('[angel]')
-    prawini.write('client_id=Jq0BiuUeIrsr3A\nclient_secret=None\nredirect_uri=http://localhost:8080')
-    prawini.close()
+    initPrawINI()
+
 
 # Start QApplication instance
 app = QApplication(sys.argv)
@@ -94,39 +105,46 @@ class MainWindow(QMainWindow):
         loginBox.setAlignment(Qt.AlignCenter)
 
         # Create login fields and enter button
-        self.title = QLabel('Login with Reddit credentials')
-        self.title.setAlignment(Qt.AlignCenter)
-        self.uname = QLineEdit(placeholderText='Username')
-        self.uname.setFixedWidth(300)
-        self.uname.setAlignment(Qt.AlignCenter)
-        self.passwd = QLineEdit(placeholderText='Password')
-        self.passwd.setEchoMode(QLineEdit.Password)
-        self.passwd.setFixedWidth(300)
-        self.passwd.setAlignment(Qt.AlignCenter)
-        self.login = QPushButton()
-        self.login.setFixedWidth(300)
-        self.login.setFixedHeight(80)
-        self.redditIcon = QIcon("/opt/angel-reddit/reddit.png")
-        self.login.setIconSize(QSize(300, 85))
-        self.login.setIcon(self.redditIcon)
-        self.enterBox = QVBoxLayout()
-        self.enter = QPushButton('Browse without login')
-        self.enter.setFixedWidth(200)
-        self.noLogin = QRadioButton('Browse without login')
-        loginBox.addWidget(self.title)
-        loginBox.addWidget(self.login)
-        self.enterBox.addWidget(self.enter)
-        self.enterBox.setAlignment(Qt.AlignCenter)
-        self.enterWidget = QWidget()
-        self.enterWidget.setLayout(self.enterBox)
-        loginBox.addWidget(self.enterWidget)
-        # Qt5 connect syntax is object.valueThatIsConnected.connect(func.toConnectTo)
-        self.enter.clicked.connect(self.initAnonReddit)
-        self.login.clicked.connect(self.initReddit)
-        # Set selected widget to be central, taking up the whole
-        # window by default
-        self.mainWidget.setLayout(loginBox)
-        self.setCentralWidget(self.mainWidget)
+        self.title = QLabel('Logging in...')
+        with open("{}/.config/praw.ini".format(envHome), "rt") as prawini:
+            if "refresh_token" in prawini.read():
+                self.reddit = praw.Reddit("angel")
+                self.redditUname = self.reddit.user.me()
+                prawini.close()
+                self.initUI()
+            else:
+                self.title.setAlignment(Qt.AlignCenter)
+                self.uname = QLineEdit(placeholderText='Username')
+                self.uname.setFixedWidth(300)
+                self.uname.setAlignment(Qt.AlignCenter)
+                self.passwd = QLineEdit(placeholderText='Password')
+                self.passwd.setEchoMode(QLineEdit.Password)
+                self.passwd.setFixedWidth(300)
+                self.passwd.setAlignment(Qt.AlignCenter)
+                self.login = QPushButton()
+                self.login.setFixedWidth(300)
+                self.login.setFixedHeight(80)
+                self.redditIcon = QIcon("/opt/angel-reddit/reddit.png")
+                self.login.setIconSize(QSize(300, 85))
+                self.login.setIcon(self.redditIcon)
+                self.enterBox = QVBoxLayout()
+                self.enter = QPushButton('Browse without login')
+                self.enter.setFixedWidth(200)
+                self.noLogin = QRadioButton('Browse without login')
+                loginBox.addWidget(self.title)
+                loginBox.addWidget(self.login)
+                self.enterBox.addWidget(self.enter)
+                self.enterBox.setAlignment(Qt.AlignCenter)
+                self.enterWidget = QWidget()
+                self.enterWidget.setLayout(self.enterBox)
+                loginBox.addWidget(self.enterWidget)
+                # Qt5 connect syntax is object.valueThatIsConnected.connect(func.toConnectTo)
+                self.enter.clicked.connect(self.initAnonReddit)
+                self.login.clicked.connect(self.initReddit)
+                # Set selected widget to be central, taking up the whole
+                # window by default
+                self.mainWidget.setLayout(loginBox)
+                self.setCentralWidget(self.mainWidget)
 
     def onButtonPress(self, s):
         print('click', s)
@@ -286,13 +304,18 @@ class MainWindow(QMainWindow):
         self.mainLayout.addWidget(self.viewWidget)
         self.viewWidget.show()
 
+
+
+    # Define function to switch between subreddits
     def switchSub(self):
         self.status.setText('Retrieving submissions')
         time.sleep(0.5)
+
+        # Set up icons for the various post types
         self.textIcon = QIcon('/opt/angel-reddit/text.png')
         self.linkIcon = QIcon('/opt/angel-reddit/link.png')
         self.imageIcon = QIcon('/opt/angel-reddit/imagelink.png')
-        if self.centralWidget() == self.wowSuchEmpty:
+        if self.centralWidget() != self.window:
             self.setCentralWidget(self.window)
         self.clearLayout(self.subList)
         self.subList = QVBoxLayout()
@@ -358,6 +381,9 @@ class MainWindow(QMainWindow):
             time.sleep(0.01)
         self.status.setText('/u/' + str(self.redditUname))
 
+
+
+    # Define function to instantiate an anonymous instance of the PRAW Reddit class
     def initAnonReddit(self):
         # Instantiate Reddit object
         loggedIn = False
@@ -367,37 +393,64 @@ class MainWindow(QMainWindow):
         print(self.reddit.auth.url(["identity", "read", "mysubreddits", "history"], "...", "permanent"))
         self.initUI()
 
+
+
+    # Define fuction to instantiate the PRAW Reddit class
     def initReddit(self):
+
+        # Instantiate Reddit class with basic values
         self.reddit = praw.Reddit(redirect_uri="http://localhost:8080", client_id="Jq0BiuUeIrsr3A", client_secret=None, user_agent="Angel for Reddit v0.5 (by /u/Starkiller645)")
+
+        # Open webpage to authorisation URL
         webbrowser.open(self.reddit.auth.url(["identity", "read", "mysubreddits", "history"], "...", "permanent"))
+
+        # Receive data connection on localhost:8080
         self.client = self.receiveConnection()
         data = self.client.recv(1024).decode("utf-8")
         param_tokens = data.split(" ", 2)[1].split("?", 1)[1].split("&")
         params = {
         key: value for (key, value) in [token.split("=") for token in param_tokens]
         }
+
+        # Authorise to Reddit and assign to variable
         self.code = self.reddit.auth.authorize(params["code"])
         print(self.code)
 
-        print(self.reddit.user.me())
+        # Add refresh token to praw.ini
+        with open("{}/.config/praw.ini".format(envHome), "a") as prawini:
+            prawini.write('\nrefresh_token={}'.format(self.code))
+
+        # Initilise UI and assign value to redditUname
         self.redditUname = self.reddit.user.me()
         self.initUI()
 
+
+
+    # Function call to initialise the main UI of the program
     def initUI(self):
+        # Begin to set up toolbar
         self.searchSubs = QLineEdit(placeholderText="r/subreddit")
         self.searchButton = QPushButton('Go')
         self.searchSubs.setMaximumWidth(500)
         self.searchSubs.setMinimumWidth(500)
         self.searchButton.setMaximumWidth(40)
         self.toolbar = QToolBar()
+
+        # If user is logged in, display uname at top right
         if self.reddit.user.me() is not None:
             self.status = QLineEdit('/u/{}'.format(self.redditUname))
         else:
             self.status = QLineEdit('Connected to Reddit')
+
+        # Set up the main UI box, including subreddit name and icons,
+        # header and scroll areas
+        # Set up status area
         self.status.setReadOnly(True)
         self.status.setAlignment(Qt.AlignRight)
         self.status.setMaximumWidth(175)
         self.status.setMinimumWidth(175)
+
+        # Finish setting up toolbar
         self.spacer1 = QWidget()
         self.spacer2 = QWidget()
         self.spacer1.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -410,6 +463,8 @@ class MainWindow(QMainWindow):
         self.subHeader.setStyleSheet('font-weight: bold; font-size: 30px;')
         self.status.setAlignment(Qt.AlignCenter)
         self.addToolBar(self.toolbar)
+
+        # Add widgets to toolbar
         self.toolbar.addWidget(self.searchSubs)
         self.toolbar.addWidget(self.searchButton)
         self.toolbar.addWidget(self.spacer1)
@@ -417,6 +472,8 @@ class MainWindow(QMainWindow):
         self.toolbar.addWidget(self.subHeader)
         self.toolbar.addWidget(self.spacer2)
         self.toolbar.addWidget(self.status)
+
+        # Set main layout
         self.mainLayout = QHBoxLayout()
         self.wowSuchEmpty = QLabel('Wow, such empty!')
         self.wowSuchEmpty.setAlignment(Qt.AlignCenter)
@@ -429,6 +486,8 @@ class MainWindow(QMainWindow):
         self.subScroll = QScrollArea()
         self.subScroll.setWidget(self.subredditBar)
         self.subScroll.widgetResizable = True
+
+        # Set up left-side scroll area for the submission list
         self.scroll = QScrollArea()
         self.viewWidget = QLabel('Wow, such empty!')
         self.scroll.setWidget(self.subredditBar)
@@ -437,6 +496,7 @@ class MainWindow(QMainWindow):
         self.window.setStyleSheet('@import url("https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&display=swap"); font-family: Lato')
         self.setCentralWidget(self.window)
 
+        # Connect searchButton with subreddit switching function
         self.searchButton.clicked.connect(self.switchSub)
 
 
