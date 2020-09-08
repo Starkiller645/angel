@@ -35,5 +35,4 @@ To uninstall:
 # Requirements
 These should be the same for all distros, but open an issue if there is a difference
 
-* Distro packages: `python3 python3-praw python3-pillow python3-pyqt5 python3-requests`
-* PyPi packages: `setuptools`
+* Distro packages: `python3 python3-praw python3-pillow python3-pyqt5 python3-requests python3-setuptools`
