@@ -103,6 +103,9 @@ class RequestTimeOut(QWidget):
 class MainWindow(QMainWindow):
     def __init__(self, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
+        self.initProgram()
+
+    def initProgram(self):
         submissionImage = None
         self.resize(1080, 640)
         label = QLabel()
@@ -136,6 +139,26 @@ class MainWindow(QMainWindow):
         # Add to loginBox
         loginBox.addWidget(label)
         loginBox.setAlignment(Qt.AlignCenter)
+
+        if os.path.exists("{}/.config/praw.ini".format(envHome)) or os.path.exists("{}\Angel\\\praw.ini".format(appData)):
+            if isWindows:
+                with open("{}\\Angel\\praw.ini".format(appData)) as prawini:
+                    if "[DEFAULT]" in prawini.read():
+                        prawini.close()
+                        os.remove("{}\\Angel\\praw.ini".format(appData))
+                        initPrawINI()
+                    else:
+                        prawiniExists = True
+            else:
+                with open("{}/.config/praw.ini".format(envHome)) as prawini:
+                    if "[DEFAULT]" in prawini.read():
+                        prawini.close()
+                        os.remove("{}/.config/praw.ini".format(envHome))
+                        initPrawINI()
+                    else:
+                        prawiniExists = True
+        else:
+            initPrawINI()
 
         # Create login fields and enter button
         self.title = QLabel('Logging in...')
@@ -472,7 +495,7 @@ class MainWindow(QMainWindow):
             print(self.subWidgetList[self.i].id)
             self.subredditBar.setLayout(self.subList)
             self.subWidgetList[self.i].setFixedHeight(100)
-            self.subWidgetList[self.i].setFixedWidth(480)
+            self.subWidgetList[self.i].setFixedWidth(400)
             self.subScroll.setFixedWidth(500)
             self.subScroll.setWidget(self.subredditBar)
             self.subScroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -530,6 +553,35 @@ class MainWindow(QMainWindow):
 
 
 
+    def createMenu(self, dictionary, menu):
+        if isinstance(dictionary, list):
+            for entry in dictionary:
+                self.createMenu(entry, menu)
+        elif isinstance(dictionary, dict):
+            for key, value in dictionary.items():
+                subMenu = QMenu(key, menu)
+                menu.addMenu(subMenu)
+                self.createMenu(value, subMenu)
+        else:
+            action = menu.addAction(dictionary)
+            action.setIconVisibleInMenu(False)
+
+
+    # Function for logging out of the program
+    def logOut(self):
+        try:
+            if isWindows:
+                os.remove("{}\Angel\praw.ini".format(appData))
+            else:
+                os.remove("{}/.config/praw.ini".format(envHome))
+        except OSError:
+            print("[ERR] praw.ini does not exist, so cannot be deleted\n[ERR] Please check /opt/angel-reddit on POSIX OSes or\n[ERR] %APPDATA%\\Angel on Win10")
+        finally:
+            self.toolbar.close()
+            self.toolbar.deleteLater()
+            self.initProgram()
+
+
     # Function call to initialise the main UI of the program
     def initUI(self):
         # Begin to set up toolbar
@@ -554,6 +606,15 @@ class MainWindow(QMainWindow):
         self.status.setMaximumWidth(175)
         self.status.setMinimumWidth(175)
 
+
+        # Set up menu button
+        self.menuButton = QPushButton("Menu")
+        self.menu = QMenu()
+        self.menuEntryArray = ["Logout", "Website"]
+        self.createMenu(self.menuEntryArray, self.menu)
+        self.menuButton.setMenu(self.menu)
+        self.menu.triggered.connect(self.logOut)
+
         # Finish setting up toolbar
         self.spacer1 = QWidget()
         self.spacer2 = QWidget()
@@ -561,9 +622,9 @@ class MainWindow(QMainWindow):
         self.spacer2.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.subIcon = QLabel()
         if isWindows:
-            self.subIconPixmap = QPixmap('{}\\Angel\\default.png'.format(appData))
+            self.subIconPixmap = QPixmap()
         else:
-            self.subIconPixmap = QPixmap('/opt/angel-reddit/default.png')
+            self.subIconPixmap = QPixmap()
         self.subIcon.setPixmap(self.subIconPixmap)
         self.subIcon.show()
         self.subHeader = QLabel('r/none')
@@ -579,6 +640,7 @@ class MainWindow(QMainWindow):
         self.toolbar.addWidget(self.subHeader)
         self.toolbar.addWidget(self.spacer2)
         self.toolbar.addWidget(self.status)
+        self.toolbar.addWidget(self.menuButton)
 
         # Set main layout
         self.mainLayout = QHBoxLayout()
