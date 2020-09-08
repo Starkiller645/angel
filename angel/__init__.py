@@ -472,7 +472,7 @@ class MainWindow(QMainWindow):
             print(self.subWidgetList[self.i].id)
             self.subredditBar.setLayout(self.subList)
             self.subWidgetList[self.i].setFixedHeight(100)
-            self.subScroll.setFixedWidth(480)
+            self.subWidgetList[self.i].setFixedWidth(480)
             self.subScroll.setFixedWidth(500)
             self.subScroll.setWidget(self.subredditBar)
             self.subScroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
