@@ -109,7 +109,7 @@ class MainWindow(QMainWindow):
         submissionImage = None
         self.resize(1080, 640)
         label = QLabel()
-        self.setWindowTitle('Angel v0.5-beta')
+        self.setWindowTitle('Angel v0.6-rc1')
         self.mainWidget = QWidget()
 
         # Setup
@@ -495,7 +495,7 @@ class MainWindow(QMainWindow):
             print(self.subWidgetList[self.i].id)
             self.subredditBar.setLayout(self.subList)
             self.subWidgetList[self.i].setFixedHeight(100)
-            self.subWidgetList[self.i].setFixedWidth(400)
+            self.subWidgetList[self.i].setFixedWidth(460)
             self.subScroll.setFixedWidth(500)
             self.subScroll.setWidget(self.subredditBar)
             self.subScroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
