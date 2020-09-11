@@ -182,7 +182,7 @@ class MainWindow(QMainWindow):
                     self.login.setFixedWidth(300)
                     self.login.setFixedHeight(80)
                     if isWindows:
-                        self.redditIcon = QIcon("{}\\Angel\\reddit.png".format(appData))
+                        self.redditIcon = QIcon("{}\Angel\reddit.png".format(appData))
                     else:
                         self.redditIcon = QIcon("/opt/angel-reddit/reddit.png")
                     self.login.setIconSize(QSize(300, 85))
@@ -322,10 +322,15 @@ class MainWindow(QMainWindow):
         self.subHeader.setText(' r/' + sub.display_name)
         return
 
-    def view(self):
+    def view(self, id=False):
         print('[DBG] Started view function')
         print(self.sender())
-        widgetNum = self.sender().getID()
+        if id != False:
+            self.widgetNum = id
+        else:
+            self.widgetNum = self.sender().getID()
+        print("[DBG] Func arg ID is " + str(id))
+        print("[DBG] self.widgetNum is " + str(self.widgetNum))
         self.mainLayout.removeWidget(self.viewWidget)
         self.viewWidget.deleteLater()
         self.viewWidget = None
@@ -340,28 +345,28 @@ class MainWindow(QMainWindow):
         self.submissionTitle = QLabel()
         self.submissionTitle.setWordWrap(True)
         self.submissionTitle.setStyleSheet('font-size: 42px; font-weight: bold;')
-        self.submissionTitle.setText(self.submissionTitleList[widgetNum])
+        self.submissionTitle.setText(self.submissionTitleList[self.widgetNum])
         self.submissionTitle.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         print('[DBG] Created submission title widget')
         self.submissionAuthor = QLabel()
         self.submissionAuthor.setStyleSheet('font-size: 30px; font-style: italic;')
-        self.submissionAuthor.setText('u/' + self.submissionAuthorList[widgetNum])
+        self.submissionAuthor.setText('u/' + self.submissionAuthorList[self.widgetNum])
         self.submissionAuthor.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         print('[DBG] Created submission author widget')
         self.submissionBody = QLabel()
         self.submissionBody.setWordWrap(True)
         self.submissionBody.setStyleSheet('font-size: 20px;')
-        self.submissionBody.setText(self.submissionDescList[widgetNum])
+        self.submissionBody.setText(self.submissionDescList[self.widgetNum])
         self.submissionBody.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         print('[DBG] Created submission body widget')
-        if 'i.redd.it' in self.submissionImageUrl[widgetNum] or 'imgur.com' in self.submissionImageUrl[widgetNum]:
+        if 'i.redd.it' in self.submissionImageUrl[self.widgetNum] or 'imgur.com' in self.submissionImageUrl[self.widgetNum]:
             submissionImage = QLabel()
-            preimg = QPixmap(self.fetchImage(self.submissionImageUrl[widgetNum]))
+            preimg = QPixmap(self.fetchImage(self.submissionImageUrl[self.widgetNum]))
             img = preimg.scaledToWidth(500)
             submissionImage.setPixmap(img)
             print('[DBG] Created pixmap for image')
-        elif 'reddit.com' not in self.submissionImageUrl[widgetNum]:
-            submissionImage = QLabel('<a href="{0}" >{0}</a>'.format(self.submissionImageUrl[widgetNum]))
+        elif 'reddit.com' not in self.submissionImageUrl[self.widgetNum]:
+            submissionImage = QLabel('<a href="{0}" >{0}</a>'.format(self.submissionImageUrl[self.widgetNum]))
             submissionImage.setOpenExternalLinks(True)
             submissionImage.setStyleSheet('font-size: 26px; color: skyblue;')
         else:
@@ -370,7 +375,7 @@ class MainWindow(QMainWindow):
         self.submissionUrl = QLabel()
         self.submissionUrl.setWordWrap(True)
         self.submissionUrl.setStyleSheet('font-size: 18px;')
-        self.submissionUrl.setText('<a href=\"{}\">Link</a>'.format(self.submissionImageUrl[widgetNum]))
+        self.submissionUrl.setText('<a href=\"{}\">Link</a>'.format(self.submissionImageUrl[self.widgetNum]))
         self.submissionUrl.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         print('[DBG] Created submission URL widget')
         #self.submissionScore = QWidget()
@@ -381,7 +386,7 @@ class MainWindow(QMainWindow):
         #self.scoreLabel.setPixmap(self.scorePixmap)
         #self.scoreLayout = QHBoxLayout()
         #self.scre = QLabel()
-        #self.scre.setText("<b>{}</b>".format(self.submissionScoreList[widgetNum]))
+        #self.scre.setText("<b>{}</b>".format(self.submissionScoreList[self.widgetNum]))
         #self.scoreLayout.addWidget(self.scoreLabel)
         #self.scoreLayout.addWidget(self.scre)
         #self.scoreLabel.setLayout(self.scoreLayout)
@@ -425,7 +430,7 @@ class MainWindow(QMainWindow):
 
 
     # Define function to switch between subreddits
-    def switchSub(self):
+    def switchSub(self, subreddit=None):
         self.status.setText('Retrieving submissions')
         time.sleep(0.5)
 
@@ -443,7 +448,10 @@ class MainWindow(QMainWindow):
         self.clearLayout(self.subList)
         self.subList = QVBoxLayout()
         self.subredditBar = QWidget()
-        self.sub = self.reddit.subreddit(self.searchSubs.text()[2:])
+        if subreddit is not None:
+            self.sub = self.reddit.subreddit(subreddit)
+        else:
+            self.sub = self.reddit.subreddit(self.searchSubs.text()[2:])
         self.submissionIDList, self.submissionTitleList, self.submissionDescList, self.submissionImageUrl, self.subWidgetList, self.submissionAuthorList, self.submissionScoreList = [], [], [], [], [], [], []
         self.i = 0
         try:
@@ -535,7 +543,7 @@ class MainWindow(QMainWindow):
         key: value for (key, value) in [token.split("=") for token in param_tokens]
         }
 
-        # Authorise to Reddit and assign to variable
+        # Authorise to Reddit and initRedditassign to variable
         self.code = self.reddit.auth.authorize(params["code"])
         print(self.code)
 
@@ -566,6 +574,24 @@ class MainWindow(QMainWindow):
             action = menu.addAction(dictionary)
             action.setIconVisibleInMenu(False)
 
+    def createSubMenu(self):
+        self.subListRaw = list(self.reddit.user.subreddits(limit=None))
+        self.subMenu = QMenu()
+        self.subredditList = []
+        for subreddit in self.subListRaw:
+            self.subredditList.append(subreddit.display_name)
+            print("[DBG] " + subreddit.display_name)
+        print(self.subredditList)
+        for i in range(len(self.subredditList)):
+            self.subMenu.addAction(self.subredditList[i])
+            print(self.subMenu.actions()[i])
+            currentAction = self.subMenu.actions()[i]
+            print(currentAction)
+            currentAction.triggered.connect(lambda iter=i: self.switchSub(self.subredditList[iter]))
+            time.sleep(0.02)
+            print(i)
+
+
 
     # Function for logging out of the program
     def logOut(self):
@@ -582,15 +608,38 @@ class MainWindow(QMainWindow):
             self.initProgram()
 
 
+    def widgetUp(self):
+        self.widgetNum += 1
+        self.view(self.widgetNum)
+
+    def widgetDown(self):
+        self.widgetNum -= 1
+        self.view(self.widgetNum)
+
+
     # Function call to initialise the main UI of the program
     def initUI(self):
         # Begin to set up toolbar
+        print(list(self.reddit.user.subreddits()))
         self.searchSubs = QLineEdit(placeholderText="r/subreddit")
+        self.subListButton = QPushButton()
+        self.createSubMenu()
+        self.subListButton.setMenu(self.subMenu)
         self.searchButton = QPushButton('Go')
+        self.searchButton.setShortcut("Return")
         self.searchSubs.setMaximumWidth(500)
         self.searchSubs.setMinimumWidth(500)
         self.searchButton.setMaximumWidth(40)
         self.toolbar = QToolBar()
+
+        # Create null buttons for UP and DOWN keys
+        self.widgetNum = 0
+        self.nullUp = QPushButton()
+        self.nullDown = QPushButton()
+        self.nullUp.clicked.connect(self.widgetUp)
+        self.nullDown.clicked.connect(self.widgetDown)
+        self.nullUp.setShortcut("Up")
+        self.nullDown.setShortcut("Down")
 
         # If user is logged in, display uname at top right
         if self.reddit.user.me() is not None:
@@ -635,6 +684,7 @@ class MainWindow(QMainWindow):
         # Add widgets to toolbar
         self.toolbar.addWidget(self.searchSubs)
         self.toolbar.addWidget(self.searchButton)
+        self.toolbar.addWidget(self.subListButton)
         self.toolbar.addWidget(self.spacer1)
         self.toolbar.addWidget(self.subIcon)
         self.toolbar.addWidget(self.subHeader)
