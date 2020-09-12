@@ -109,7 +109,7 @@ class MainWindow(QMainWindow):
         submissionImage = None
         self.resize(1080, 640)
         label = QLabel()
-        self.setWindowTitle('Angel v0.6-rc2')
+        self.setWindowTitle('Angel v0.6-rc3')
         self.mainWidget = QWidget()
 
         # Setup
@@ -634,6 +634,7 @@ class MainWindow(QMainWindow):
                 self.subListButton.setMaximumWidth(25)
                 self.createSubMenu()
                 self.subListButton.setMenu(self.subMenu)
+                self.subMenu.setShortcut("Ctrl + S")
         except AttributeError:
             pass
         self.searchButton = QPushButton('Go')
