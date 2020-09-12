@@ -109,7 +109,7 @@ class MainWindow(QMainWindow):
         submissionImage = None
         self.resize(1080, 640)
         label = QLabel()
-        self.setWindowTitle('Angel v0.6-rc1')
+        self.setWindowTitle('Angel v0.6-rc2')
         self.mainWidget = QWidget()
 
         # Setup
@@ -332,7 +332,8 @@ class MainWindow(QMainWindow):
         print("[DBG] Func arg ID is " + str(id))
         print("[DBG] self.widgetNum is " + str(self.widgetNum))
         self.mainLayout.removeWidget(self.viewWidget)
-        self.viewWidget.deleteLater()
+        if self.viewWidget is not None:
+            self.viewWidget.deleteLater()
         self.viewWidget = None
         self.scroll.takeWidget()
         self.viewWidget = QWidget()
@@ -431,6 +432,7 @@ class MainWindow(QMainWindow):
 
     # Define function to switch between subreddits
     def switchSub(self, subreddit=None):
+        print(subreddit)
         self.status.setText('Retrieving submissions')
         time.sleep(0.5)
 
@@ -448,7 +450,8 @@ class MainWindow(QMainWindow):
         self.clearLayout(self.subList)
         self.subList = QVBoxLayout()
         self.subredditBar = QWidget()
-        if subreddit is not None:
+        print(subreddit)
+        if subreddit != None and subreddit != True and subreddit != False:
             self.sub = self.reddit.subreddit(subreddit)
         else:
             self.sub = self.reddit.subreddit(self.searchSubs.text()[2:])
@@ -510,7 +513,10 @@ class MainWindow(QMainWindow):
             self.subScroll.setWidgetResizable(True)
             self.subWidgetList[self.i].show()
             time.sleep(0.01)
-        self.status.setText('/u/' + str(self.redditUname))
+        try:
+            self.status.setText('/u/' + str(self.redditUname))
+        except AttributeError:
+            self.status.setText('Connected to Reddit')
 
 
 
@@ -582,13 +588,14 @@ class MainWindow(QMainWindow):
             self.subredditList.append(subreddit.display_name)
             print("[DBG] " + subreddit.display_name)
         print(self.subredditList)
-        for i in range(len(self.subredditList)):
-            self.subMenu.addAction(self.subredditList[i])
+        i = 0
+        for currentSub in self.subredditList:
+            self.subMenu.addAction(currentSub)
             print(self.subMenu.actions()[i])
-            currentAction = self.subMenu.actions()[i]
-            print(currentAction)
-            currentAction.triggered.connect(lambda iter=i: self.switchSub(self.subredditList[iter]))
-            time.sleep(0.02)
+            print(self.subredditList[i])
+            print(currentSub)
+            self.subMenu.actions()[i].triggered.connect(lambda null, s=currentSub: self.switchSub(s))
+            i += 1
             print(i)
 
 
@@ -620,11 +627,15 @@ class MainWindow(QMainWindow):
     # Function call to initialise the main UI of the program
     def initUI(self):
         # Begin to set up toolbar
-        print(list(self.reddit.user.subreddits()))
         self.searchSubs = QLineEdit(placeholderText="r/subreddit")
-        self.subListButton = QPushButton()
-        self.createSubMenu()
-        self.subListButton.setMenu(self.subMenu)
+        try:
+            if self.redditUname is not None:
+                self.subListButton = QPushButton()
+                self.subListButton.setMaximumWidth(25)
+                self.createSubMenu()
+                self.subListButton.setMenu(self.subMenu)
+        except AttributeError:
+            pass
         self.searchButton = QPushButton('Go')
         self.searchButton.setShortcut("Return")
         self.searchSubs.setMaximumWidth(500)
@@ -684,7 +695,11 @@ class MainWindow(QMainWindow):
         # Add widgets to toolbar
         self.toolbar.addWidget(self.searchSubs)
         self.toolbar.addWidget(self.searchButton)
-        self.toolbar.addWidget(self.subListButton)
+        try:
+            if self.redditUname is not None:
+                self.toolbar.addWidget(self.subListButton)
+        except AttributeError:
+            pass
         self.toolbar.addWidget(self.spacer1)
         self.toolbar.addWidget(self.subIcon)
         self.toolbar.addWidget(self.subHeader)
