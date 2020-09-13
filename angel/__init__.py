@@ -109,7 +109,7 @@ class MainWindow(QMainWindow):
         submissionImage = None
         self.resize(1080, 640)
         label = QLabel()
-        self.setWindowTitle('Angel v0.6-rc3')
+        self.setWindowTitle('Angel v0.6')
         self.mainWidget = QWidget()
 
         # Setup
