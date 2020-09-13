@@ -25,6 +25,7 @@ if os.name != "posix":
     isWindows = True
 else:
     isWindows = False
+print(sys.platform)
 
 def initPrawINI():
     if isWindows:
@@ -64,6 +65,8 @@ else:
 
 # Start QApplication instance
 app = QApplication(sys.argv)
+if sys.platform == "darwin":
+    app.setStyle('Fusion')
 if isWindows:
     app.setWindowIcon(QIcon('{}\\Angel\\angel.ico'.format(appData)))
 else:
