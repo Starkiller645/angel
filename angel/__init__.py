@@ -25,6 +25,7 @@ if os.name != "posix":
     isWindows = True
 else:
     isWindows = False
+print(sys.platform)
 
 def initPrawINI():
     if isWindows:
@@ -64,6 +65,8 @@ else:
 
 # Start QApplication instance
 app = QApplication(sys.argv)
+if sys.platform == "darwin":
+    app.setStyle('Fusion')
 if isWindows:
     app.setWindowIcon(QIcon('{}\\Angel\\angel.ico'.format(appData)))
 else:
@@ -109,7 +112,7 @@ class MainWindow(QMainWindow):
         submissionImage = None
         self.resize(1080, 640)
         label = QLabel()
-        self.setWindowTitle('Angel v0.6')
+        self.setWindowTitle('Angel v0.6.1-beta')
         self.mainWidget = QWidget()
 
         # Setup
@@ -152,8 +155,8 @@ class MainWindow(QMainWindow):
             else:
                 with open("{}/.config/praw.ini".format(envHome)) as prawini:
                     if "[DEFAULT]" in prawini.read():
-                        prawini.close()
                         os.remove("{}/.config/praw.ini".format(envHome))
+                        prawini.close()
                         initPrawINI()
                     else:
                         prawiniExists = True
@@ -308,8 +311,8 @@ class MainWindow(QMainWindow):
         output = ImageOps.fit(image, mask.size, centering=(0.5, 0.5))
         output.putalpha(mask)
         if isWindows:
-            output.save('{}\\Angel\\temp\\.subimg.png'.format(appData))
-            return '{}\\Angel\\temp\\.subimg.png'.format(appData)
+            output.save('{0}\\Angel\\temp\\.subimg.{1}'.format(appData))
+            return '{0}\\Angel\\temp\\.subimg.{1}'.format(appData)
         else:
             output.save('/opt/angel-reddit/temp/.subimg.png')
             return '/opt/angel-reddit/temp/.subimg.png'
@@ -322,7 +325,38 @@ class MainWindow(QMainWindow):
         self.subHeader.setText(' r/' + sub.display_name)
         return
 
+    def giveUpvote(self, post):
+        if self.hasDownVoted == True:
+            post.clear_vote()
+            self.scre.setText(str(self.submissionScoreList[self.widgetNum]))
+            self.hasDownVoted = False
+            self.hasUpVoted = False
+            return 0
+        if self.hasUpVoted == True:
+            return 0
+        else:
+            post.upvote()
+            self.scre.setText(str(int(self.submissionScoreList[self.widgetNum]) + 1))
+            self.hasUpVoted = True
+
+    def giveDownvote(self, post):
+        if self.hasUpVoted == True:
+            post.clear_vote()
+            self.scre.setText(str(self.submissionScoreList[self.widgetNum]))
+            self.hasUpVoted = False
+            self.hasDownVoted = False
+            return 0
+        if self.hasDownVoted == True:
+            return 0
+        else:
+            post.downvote()
+            self.scre.setText(str(int(self.submissionScoreList[self.widgetNum]) - 1))
+            self.hasDownVoted = True
+
+
     def view(self, id=False):
+        self.hasDownVoted = False
+        self.hasUpVoted = False
         print('[DBG] Started view function')
         print(self.sender())
         if id != False:
@@ -335,7 +369,15 @@ class MainWindow(QMainWindow):
         if self.viewWidget is not None:
             self.viewWidget.deleteLater()
         self.viewWidget = None
-        self.scroll.takeWidget()
+        if self.scroll is not None:
+            self.scroll.takeWidget()
+        else:
+            self.viewWidget = QWidget()
+            self.viewLayout = QVBoxLayout()
+            self.scroll = QScrollArea()
+            self.scroll.setWidget(self.viewWidget)
+            self.scroll.takeWidget()
+            self.mainLayout.addWidget(self.scroll)
         self.viewWidget = QWidget()
         self.viewLayout = QVBoxLayout()
         self.mainBody = QVBoxLayout()
@@ -379,18 +421,33 @@ class MainWindow(QMainWindow):
         self.submissionUrl.setText('<a href=\"{}\">Link</a>'.format(self.submissionImageUrl[self.widgetNum]))
         self.submissionUrl.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         print('[DBG] Created submission URL widget')
-        #self.submissionScore = QWidget()
+        self.submissionScore = QWidget()
 
         # Set up Score (Combined up- and downvotes) widget, to be able to view upvotes
-        #self.scoreLabel = QLabel()
-        #self.scorePixmap = QPixmap("/opt/angel-reddit/upvote.png")
-        #self.scoreLabel.setPixmap(self.scorePixmap)
-        #self.scoreLayout = QHBoxLayout()
-        #self.scre = QLabel()
-        #self.scre.setText("<b>{}</b>".format(self.submissionScoreList[self.widgetNum]))
-        #self.scoreLayout.addWidget(self.scoreLabel)
-        #self.scoreLayout.addWidget(self.scre)
-        #self.scoreLabel.setLayout(self.scoreLayout)
+        self.upvoteLabel = QToolButton()
+        self.downvoteLabel = QToolButton()
+        print('[DBG] Creating score label')
+        self.upvotePixmap = QIcon("/opt/angel-reddit/upvote.png")
+        self.downvotePixmap = QIcon("/opt/angel-reddit/downvote.png")
+        self.upvoteLabel.setIcon(self.upvotePixmap)
+        self.downvoteLabel.setIcon(self.downvotePixmap)
+        self.currentPost = praw.models.Submission(self.reddit, id=self.submissionIDList[self.widgetNum])
+        self.upvoteLabel.clicked.connect(lambda null, sm=self.currentPost: self.giveUpvote(sm))
+        self.downvoteLabel.clicked.connect(lambda null, sm=self.currentPost: self.giveDownvote(sm))
+        print('[DBG] Set pixmap')
+        self.scoreLayout = QHBoxLayout()
+        self.scre = QLabel()
+        print('[DBG] Created score widget')
+        self.scre.setText("<b>{}</b>".format(self.submissionScoreList[self.widgetNum]))
+        self.scre.setAlignment(Qt.AlignCenter)
+        print('[DBG] Set text of score widget')
+        self.scoreLayout.addWidget(self.upvoteLabel)
+        self.scoreLayout.addWidget(self.scre)
+        self.scoreLayout.addWidget(self.downvoteLabel)
+        print('[DBG] Added widgets to score layout')
+        self.submissionScore.setLayout(self.scoreLayout)
+        self.submissionScore.setMaximumHeight(75)
+        self.submissionScore.setMaximumWidth(200)
         print('[DBG] Created score widget')
 
 
@@ -405,7 +462,7 @@ class MainWindow(QMainWindow):
         self.urlLayout.addWidget(self.submissionUrl)
         self.urlBar.setLayout(self.urlLayout)
         self.viewLayout.addWidget(self.scroll)
-        #self.viewLayout.addWidget(self.score)
+        self.viewLayout.addWidget(self.submissionScore)
         self.viewWidget.setLayout(self.viewLayout)
         self.mainLayout.addWidget(self.viewWidget)
         print('[DBG] Added widgets to mainLayout and viewWidget')
@@ -527,7 +584,7 @@ class MainWindow(QMainWindow):
         self.title.setText('Attempting to connect to reddit')
         self.reddit = praw.Reddit(redirect_uri="http://localhost:8080", client_id="Jq0BiuUeIrsr3A", client_secret=None, user_agent="Angel for Reddit v0.5 (by /u/Starkiller645)")
         print(self.reddit)
-        print(self.reddit.auth.url(["identity", "read", "mysubreddits", "history"], "...", "permanent"))
+        print(self.reddit.auth.url(["identity", "vote", "read", "mysubreddits", "history"], "...", "permanent"))
         self.initUI()
 
 
@@ -539,7 +596,7 @@ class MainWindow(QMainWindow):
         self.reddit = praw.Reddit(redirect_uri="http://localhost:8080", client_id="Jq0BiuUeIrsr3A", client_secret=None, user_agent="Angel for Reddit v0.5 (by /u/Starkiller645)")
 
         # Open webpage to authorisation URL
-        webbrowser.open(self.reddit.auth.url(["identity", "read", "mysubreddits", "history"], "...", "permanent"))
+        webbrowser.open(self.reddit.auth.url(["identity", "vote", "read", "mysubreddits", "history"], "...", "permanent"))
 
         # Receive data connection on localhost:8080
         self.client = self.receiveConnection()
@@ -643,6 +700,8 @@ class MainWindow(QMainWindow):
         self.searchSubs.setMinimumWidth(500)
         self.searchButton.setMaximumWidth(40)
         self.toolbar = QToolBar()
+        self.hasUpVoted = False
+        self.hasDownVoted = False
 
         # Create null buttons for UP and DOWN keys
         self.widgetNum = 0
