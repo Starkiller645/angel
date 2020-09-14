@@ -1,11 +1,8 @@
 language: python
 dist: bionic
-env:
-  - QT_DEBUG_PLUGINS=1
 services:
   - xvfb
 python:
- - 3.5
  - 3.6
  - 3.8
 before_install:
