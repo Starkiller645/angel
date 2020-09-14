@@ -18,5 +18,5 @@ uninstall:
 	@sudo rm ENVHOME/.config/praw.ini
 test:
 	@sudo -H pip install pytest coverage
-	@py.test
+	@pytest -s
 	@coverage xml angel/__init__.py
