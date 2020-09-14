@@ -16,3 +16,6 @@ uninstall:
 	@sudo bash -c 'rm /usr/share/applications/angel.desktop'
 	ENVHOME = ${HOME}
 	@sudo rm ENVHOME/.config/praw.ini
+test:
+	@sudo pip3 install pytest
+	@py.test
