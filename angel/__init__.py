@@ -21,7 +21,6 @@ except ImportError:
     pass
 
 assert 1 == 1
-
 # Define global variable for environment
 # Check if on Windows or UNIX-Like (Darwin or Linux)
 if os.name != "posix":
