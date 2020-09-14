@@ -63,7 +63,6 @@ if os.path.exists("{}/.config/praw.ini".format(envHome)) or os.path.exists("{}\A
                 prawiniExists = True
 else:
     initPrawINI()
-_test_prawini()
 
 
 # Start QApplication instance
@@ -123,6 +122,7 @@ class MainWindow(QMainWindow):
     def __init__(self, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
         _test_assets()
+        _test_prawini()
         self.initProgram()
 
     def initProgram(self):
