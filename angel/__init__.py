@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 # Import required libraries
+import pytest
 import sys
 import time
 import praw
@@ -18,6 +19,8 @@ try:
     import pkg_resources.py2_warn
 except ImportError:
     pass
+
+assert 1 == 1
 
 # Define global variable for environment
 # Check if on Windows or UNIX-Like (Darwin or Linux)
@@ -61,6 +64,7 @@ if os.path.exists("{}/.config/praw.ini".format(envHome)) or os.path.exists("{}\A
                 prawiniExists = True
 else:
     initPrawINI()
+_test_prawini()
 
 
 # Start QApplication instance
@@ -101,11 +105,25 @@ class RequestTimeOut(QWidget):
             self.image = QPixmap('/opt/angel-reddit/error408')
         self.imageWidget.setPixmap(self.image)
 
+# Define unit tests to run when building with Travis CI
+# These are callable from the MainWindow class and test certain aspects
+# of the program at certain times
+def _test_prawini():
+    assert os.path.exists("{}/.config/praw.ini".format(envHome)) == True
+
+def _test_tempfiles():
+    assert os.path.exists("/opt/angel-reddit/temp/") == True
+
+def _test_assets():
+    assetFiles = ["angel.ico", "angel.png", "default.png", "downvote.png", "imagelink.png", "link.png", "mask.png", "reddit.png", "text.png", "upvote.png"]
+    for file in assetFiles:
+        assert os.path.exists("/opt/angel-reddit/{}".format(file))
 
 # Create a class as a child of QMainWindow for the main window of the app
 class MainWindow(QMainWindow):
     def __init__(self, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
+        _test_assets()
         self.initProgram()
 
     def initProgram(self):
@@ -310,6 +328,7 @@ class MainWindow(QMainWindow):
                 image = Image.open('/opt/angel-reddit/default.png')
         output = ImageOps.fit(image, mask.size, centering=(0.5, 0.5))
         output.putalpha(mask)
+        _test_tempfiles()
         if isWindows:
             output.save('{0}\\Angel\\temp\\.subimg.{1}'.format(appData))
             return '{0}\\Angel\\temp\\.subimg.{1}'.format(appData)
