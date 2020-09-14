@@ -1,4 +1,0 @@
- dpkg-buildpackage -us -uc -ui -s
-dpkg-buildpackage: error: unknown option or argument -s
-
-Use --help for program usage information.
