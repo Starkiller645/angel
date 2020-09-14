@@ -1,5 +1,7 @@
 language: python
 dist: bionic
+env:
+  - QT_DEBUG_PLUGINS=1
 services:
   - xvfb
 python:
