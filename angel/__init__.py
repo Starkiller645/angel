@@ -29,6 +29,12 @@ else:
     isWindows = False
 print(sys.platform)
 
+# Check if running headless for CI workflow
+if os.environ.get("CI", "") == 'true':
+    ci = True
+else:
+    ci = False
+
 def initPrawINI():
     if isWindows:
         prawini = open("{}\\Angel\\praw.ini".format(os.environ.get("APPDATA", "")))
@@ -265,6 +271,9 @@ class MainWindow(QMainWindow):
                     # window by default
                     self.mainWidget.setLayout(loginBox)
                     self.setCentralWidget(self.mainWidget)
+                    if ci:
+                        print('[CI] Initialising anonymouns praw.Reddit instance')
+                        self.initAnonReddit()
 
     def onButtonPress(self, s):
         print('click', s)
@@ -810,6 +819,15 @@ class MainWindow(QMainWindow):
 
         # Connect searchButton with subreddit switching function
         self.searchButton.clicked.connect(self.switchSub)
+        if ci:
+            print('[CI] Triggering switchSub...')
+            self.switchSub('announcements')
+            print('[CI] Switched sub\n[CI] Triggering view...')
+            self.view(id=1)
+            time.sleep(10)
+            print('[CI] Integration tests complete\n[CI] Stand by to exit...')
+            time.sleep(0.5)
+            exit()
 
 
 # Add window widgets
