@@ -13,4 +13,5 @@ install:
  - make
  - make install
 script:
+ - make test
  - codecov
