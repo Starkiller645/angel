@@ -1,5 +1,5 @@
  language: python
-python: 
+python:
  - 3.5
  - 3.6
  - 3.8
@@ -14,4 +14,4 @@ install:
  - make install
 script:
  - make test
- - codecov
+ - codecov --cov-report xml:coverage.xml
