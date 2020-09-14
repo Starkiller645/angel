@@ -827,7 +827,7 @@ class MainWindow(QMainWindow):
             time.sleep(10)
             print('[CI] Integration tests complete\n[CI] Stand by to exit...')
             time.sleep(0.5)
-            exit(0)
+            os._exit(0)
 
 
 # Add window widgets
