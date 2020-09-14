@@ -1,0 +1,16 @@
+ language: python
+python: 
+ - 3.5
+ - 3.6
+ - 3.8
+before_install:
+ - python --version
+ - pip install -U pip
+ - pip install -U pytest
+ - pip install codecov
+ - pip install praw pyqt5 requests pillow
+install:
+ - make
+ - make install
+script:
+ - codecov
