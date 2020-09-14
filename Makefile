@@ -17,5 +17,5 @@ uninstall:
 	ENVHOME = ${HOME}
 	@sudo rm ENVHOME/.config/praw.ini
 test:
-	@sudo pip3 install pytest
+	@sudo pip install pytest
 	@py.test
