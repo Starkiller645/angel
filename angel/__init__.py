@@ -35,6 +35,15 @@ if os.environ.get("CI", "") == 'true':
 else:
     ci = False
 
+def receiveConnection():
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server.bind(("localhost", 8080))
+    server.listen(1)
+    client = server.accept()[0]
+    server.close()
+    return client
+
 def initPrawINI():
     if isWindows:
         prawini = open("{}\\Angel\\praw.ini".format(os.environ.get("APPDATA", "")))
@@ -81,6 +90,53 @@ else:
     app.setWindowIcon(QIcon('/opt/angel-reddit/angel.ico'))
 
 
+class AuthorisationWorker(QObject):
+    done = pyqtSignal(list)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+    def initReddit(self):
+
+        print(window.loadingWidget)
+        window.loadingWidget.show()
+        window.loadingGif.start()
+
+        # Threading debug code
+        print('\n[THREAD] Started authorisation worker')
+
+        # Instantiate Reddit class with basic values
+        MainWindow.reddit = praw.Reddit(redirect_uri="http://localhost:8080", client_id="Jq0BiuUeIrsr3A", client_secret=None, user_agent="Angel for Reddit v0.5 (by /u/Starkiller645)")
+
+        # Open webpage to authorisation URL
+        webbrowser.open(MainWindow.reddit.auth.url(["identity", "vote", "read", "mysubreddits", "history"], "...", "permanent"))
+
+        # Receive data connection on localhost:8080
+        MainWindow.client = receiveConnection()
+        data = MainWindow.client.recv(1024).decode("utf-8")
+        param_tokens = data.split(" ", 2)[1].split("?", 1)[1].split("&")
+        params = {
+        key: value for (key, value) in [token.split("=") for token in param_tokens]
+        }
+
+        # Authorise to Reddit and initRedditassign to variable
+        MainWindow.code = MainWindow.reddit.auth.authorize(params["code"])
+        print(MainWindow.code)
+
+        # Add refresh token to praw.ini
+        if isWindows:
+            with open("{}\\Angel\\praw.ini".format(appData), "a") as prawini:
+                prawini.write('\nrefresh_token={}'.format(MainWindow.code))
+        else:
+            with open("{}/.config/praw.ini".format(envHome), "a") as prawini:
+                prawini.write('\nrefresh_token={}'.format(MainWindow.code))
+
+        # Initilise UI and assign value to redditUname
+        MainWindow.redditUname = MainWindow.reddit.user.me()
+        self.done.emit(['one', 'two', 'three'])
+        print('[THREAD] Done!\n')
+        self.initUI()
+
 # Create a custom widget class with an implementation of a unique identifier for the submission widgets
 class IDWidget(QCommandLinkButton):
     def __init__(self, id=None, *args, **kwargs):
@@ -109,6 +165,12 @@ class RequestTimeOut(QWidget):
             self.image = QPixmap('/opt/angel-reddit/error408')
         self.imageWidget.setPixmap(self.image)
 
+
+def startAuth():
+    window.loadingWidget.show()
+    window.loadingGif.start()
+    window.authThread.start()
+
 # Define unit tests to run when building with Travis CI
 # These are callable from the MainWindow class and test certain aspects
 # of the program at certain times
@@ -129,13 +191,14 @@ class MainWindow(QMainWindow):
         super(MainWindow, self).__init__(*args, **kwargs)
         _test_assets()
         _test_prawini()
+        self.loadingWidget = QLabel()
         self.initProgram()
 
     def initProgram(self):
         submissionImage = None
         self.resize(1080, 640)
         label = QLabel()
-        self.setWindowTitle('Angel v0.6.1-beta')
+        self.setWindowTitle('Angel v0.6.2-beta')
         self.mainWidget = QWidget()
 
         # Setup
@@ -224,9 +287,20 @@ class MainWindow(QMainWindow):
                     self.enterWidget = QWidget()
                     self.enterWidget.setLayout(self.enterBox)
                     loginBox.addWidget(self.enterWidget)
+                    self.loadingWidget = QLabel()
+                    self.loadingGif = QMovie('/opt/angel-reddit/loading.gif')
+                    self.loadingWidget.setMovie(self.loadingGif)
+                    #self.loadingWidget.hide()
+                    print(self.loadingWidget)
+                    loginBox.addWidget(self.loadingWidget)
                     # Qt5 connect syntax is object.valueThatIsConnected.connect(func.toConnectTo)
                     self.enter.clicked.connect(self.initAnonReddit)
-                    self.login.clicked.connect(self.initReddit)
+                    self.authThread = QThread(self)
+                    self.worker = AuthorisationWorker()
+                    self.worker.moveToThread(self.authThread)
+                    self.worker.done.connect(self.initUI)
+                    self.authThread.started.connect(self.worker.initReddit)
+                    self.login.clicked.connect(self.authThread.start)
                     # Set selected widget to be central, taking up the whole
                     # window by default
                     self.mainWidget.setLayout(loginBox)
@@ -239,6 +313,7 @@ class MainWindow(QMainWindow):
                     prawini.close()
                     self.initUI()
                 else:
+                    print('[DBG] Setting up login UI')
                     self.title.setAlignment(Qt.AlignCenter)
                     self.uname = QLineEdit(placeholderText='Username')
                     self.uname.setFixedWidth(300)
@@ -264,15 +339,27 @@ class MainWindow(QMainWindow):
                     self.enterWidget = QWidget()
                     self.enterWidget.setLayout(self.enterBox)
                     loginBox.addWidget(self.enterWidget)
+                    self.loadingGif = QMovie('/opt/angel-reddit/loading.gif')
+                    self.loadingWidget.setMovie(self.loadingGif)
+                    self.loadingWidget.setAlignment(Qt.AlignCenter)
+                    self.loadingWidget.hide()
+                    loginBox.addWidget(self.loadingWidget)
                     # Qt5 connect syntax is object.valueThatIsConnected.connect(func.toConnectTo)
                     self.enter.clicked.connect(self.initAnonReddit)
-                    self.login.clicked.connect(self.initReddit)
+                    self.authThread = QThread(self)
+                    print('[THREAD] Started auth thread')
+                    self.worker = AuthorisationWorker()
+                    self.worker.moveToThread(self.authThread)
+                    self.worker.done.connect(self.initUI)
+                    self.authThread.started.connect(self.worker.initReddit)
+                    print('[THREAD] Waiting for start signal...')
+                    self.login.clicked.connect(startAuth)
                     # Set selected widget to be central, taking up the whole
                     # window by default
                     self.mainWidget.setLayout(loginBox)
                     self.setCentralWidget(self.mainWidget)
                     if ci:
-                        print('[CI] Initialising anonymouns praw.Reddit instance')
+                        print('[CI] Initialising anonymous praw.Reddit instance')
                         self.initAnonReddit()
 
     def onButtonPress(self, s):
@@ -282,19 +369,11 @@ class MainWindow(QMainWindow):
         webbrowser.open(self.reddit.auth.url(["identity"], "...", "permanent"))
 
     # Define a function to open a web socket to receive the access token from OAuth
-    def receiveConnection(self):
-        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        server.bind(("localhost", 8080))
-        server.listen(1)
-        client = server.accept()[0]
-        server.close()
-        return client
 
     def fetchImage(self, url):
         image = requests.get(url)
         imageBytes = io.BytesIO(image.content)
-        image = Image.open(imageBytes)
+        image = Image.open(imageBytes).convert("RGB")
         if isWindows:
             image.save('{0}\\Angel\\temp\\.img.{1}'.format(appData, image.format.lower()))
             return '{0}\\Angel\\temp\\.img.{1}'.format(appData, image.format.lower())
@@ -308,7 +387,7 @@ class MainWindow(QMainWindow):
     def fetchImageUrl(self, sub):
         image = requests.get(url)
         imageBytes = io.BytesIO(image.content)
-        image = Image.open(imageBytes)
+        image = Image.open(imageBytes).convert('RGBA')
         if isWindows:
             image.save('{0}\\Angel\\temp\\.img.{1}'.format(appData, image.format.lower()))
             return '{0}\\Angel\\temp\\.img.{1}'.format(appData, (image.format).abspath("."), relative)
@@ -329,20 +408,44 @@ class MainWindow(QMainWindow):
             image = requests.get(sub.icon_img)
             imageBytes = io.BytesIO(image.content)
             image = Image.open(imageBytes)
+            image = image.convert('RGBA')
+            print(image.mode)
         else:
             if isWindows:
                 image = Image.open('{}\\Angel\\default.png'.format(appData))
             else:
                 image = Image.open('/opt/angel-reddit/default.png')
         output = ImageOps.fit(image, mask.size, centering=(0.5, 0.5))
+        output = output.convert('RGBA')
         output.putalpha(mask)
         _test_tempfiles()
         if isWindows:
-            output.save('{0}\\Angel\\temp\\.subimg.{1}'.format(appData))
-            return '{0}\\Angel\\temp\\.subimg.{1}'.format(appData)
+            try:
+                output.save('{0}\\Angel\\temp\\.subimg.{1}'.format(appData))
+            except OSError:
+                image = Image.open('{}\\Angel\\default.png'.format(appData))
+                output = ImageOps.fit(image, mask.size, centering=(0.5, 0.5))
+                output = output.convert('RGBA')
+                output.putalpha(mask)
+                output.save('{0}\\Angel\\temp\\.subimg.{1}'.format(appData))
+                return '{0}\\Angel\\temp\\.subimg.{1}'.format(appData)
+            else:
+                return '{0}\\Angel\\temp\\.subimg.{1}'.format(appData)
         else:
-            output.save('/opt/angel-reddit/temp/.subimg.png')
-            return '/opt/angel-reddit/temp/.subimg.png'
+            try:
+                print(output.mode())
+                output.save('/opt/angel-reddit/temp/.subimg.png')
+                return '/opt/angel-reddit/temp/.subimg.png'
+            except OSError:
+                image = Image.open('/opt/angel-reddit/default.png')
+                output = ImageOps.fit(image, mask.size, centering=(0.5, 0.5))
+                output = output.convert('RGBA')
+                output.putalpha(mask)
+                _test_tempfiles()
+                output.save('/opt/angel-reddit/temp/.subimg.png')
+                return '/opt/angel-reddit/temp/.subimg.png'
+            else:
+                return '/opt/angel-reddit/temp/.subimg.png'
 
     def setSubMeta(self, sub):
         imgPath = self.getSubIcon(sub)
@@ -613,42 +716,6 @@ class MainWindow(QMainWindow):
         print(self.reddit)
         print(self.reddit.auth.url(["identity", "vote", "read", "mysubreddits", "history"], "...", "permanent"))
         self.initUI()
-
-
-
-    # Define fuction to instantiate the PRAW Reddit class
-    def initReddit(self):
-
-        # Instantiate Reddit class with basic values
-        self.reddit = praw.Reddit(redirect_uri="http://localhost:8080", client_id="Jq0BiuUeIrsr3A", client_secret=None, user_agent="Angel for Reddit v0.5 (by /u/Starkiller645)")
-
-        # Open webpage to authorisation URL
-        webbrowser.open(self.reddit.auth.url(["identity", "vote", "read", "mysubreddits", "history"], "...", "permanent"))
-
-        # Receive data connection on localhost:8080
-        self.client = self.receiveConnection()
-        data = self.client.recv(1024).decode("utf-8")
-        param_tokens = data.split(" ", 2)[1].split("?", 1)[1].split("&")
-        params = {
-        key: value for (key, value) in [token.split("=") for token in param_tokens]
-        }
-
-        # Authorise to Reddit and initRedditassign to variable
-        self.code = self.reddit.auth.authorize(params["code"])
-        print(self.code)
-
-        # Add refresh token to praw.ini
-        if isWindows:
-            with open("{}\\Angel\\praw.ini".format(appData), "a") as prawini:
-                prawini.write('\nrefresh_token={}'.format(self.code))
-        else:
-            with open("{}/.config/praw.ini".format(envHome), "a") as prawini:
-                prawini.write('\nrefresh_token={}'.format(self.code))
-
-        # Initilise UI and assign value to redditUname
-        self.redditUname = self.reddit.user.me()
-        self.initUI()
-
 
 
     def createMenu(self, dictionary, menu):
