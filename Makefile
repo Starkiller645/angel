@@ -17,5 +17,6 @@ uninstall:
 	ENVHOME = ${HOME}
 	@sudo rm ENVHOME/.config/praw.ini
 test:
-	@sudo -H pip install pytest
+	@sudo -H pip install pytest coverage
 	@py.test
+	@coverage xml angel/__init__.py
