@@ -688,7 +688,7 @@ class MainWindow(QMainWindow):
                 self.subListButton.setMaximumWidth(25)
                 self.createSubMenu()
                 self.subListButton.setMenu(self.subMenu)
-                self.subMenu.setShortcut("Ctrl + S")
+                self.subMenu.setShortcut("Ctrl+S")
         except AttributeError:
             pass
         self.searchButton = QPushButton('Go')
