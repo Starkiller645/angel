@@ -198,7 +198,7 @@ class MainWindow(QMainWindow):
         submissionImage = None
         self.resize(1080, 640)
         label = QLabel()
-        self.setWindowTitle('Angel v0.6.2-beta')
+        self.setWindowTitle('Angel v0.6.3-beta')
         self.mainWidget = QWidget()
 
         # Setup
@@ -373,7 +373,7 @@ class MainWindow(QMainWindow):
     def fetchImage(self, url):
         image = requests.get(url)
         imageBytes = io.BytesIO(image.content)
-        image = Image.open(imageBytes).convert("RGB")
+        image = Image.open(imageBytes)
         if isWindows:
             image.save('{0}\\Angel\\temp\\.img.{1}'.format(appData, image.format.lower()))
             return '{0}\\Angel\\temp\\.img.{1}'.format(appData, image.format.lower())
@@ -387,7 +387,7 @@ class MainWindow(QMainWindow):
     def fetchImageUrl(self, sub):
         image = requests.get(url)
         imageBytes = io.BytesIO(image.content)
-        image = Image.open(imageBytes).convert('RGBA')
+        image = Image.open(imageBytes)
         if isWindows:
             image.save('{0}\\Angel\\temp\\.img.{1}'.format(appData, image.format.lower()))
             return '{0}\\Angel\\temp\\.img.{1}'.format(appData, (image.format).abspath("."), relative)
