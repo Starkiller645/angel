@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 # Import required libraries
+import pytest
 import sys
 import time
 import praw
@@ -19,6 +20,7 @@ try:
 except ImportError:
     pass
 
+assert 1 == 1
 # Define global variable for environment
 # Check if on Windows or UNIX-Like (Darwin or Linux)
 if os.name != "posix":
@@ -26,6 +28,12 @@ if os.name != "posix":
 else:
     isWindows = False
 print(sys.platform)
+
+# Check if running headless for CI workflow
+if os.environ.get("CI", "") == 'true':
+    ci = True
+else:
+    ci = False
 
 def initPrawINI():
     if isWindows:
@@ -101,11 +109,26 @@ class RequestTimeOut(QWidget):
             self.image = QPixmap('/opt/angel-reddit/error408')
         self.imageWidget.setPixmap(self.image)
 
+# Define unit tests to run when building with Travis CI
+# These are callable from the MainWindow class and test certain aspects
+# of the program at certain times
+def _test_prawini():
+    assert os.path.exists("{}/.config/praw.ini".format(envHome)) == True
+
+def _test_tempfiles():
+    assert os.path.exists("/opt/angel-reddit/temp/") == True
+
+def _test_assets():
+    assetFiles = ["angel.ico", "angel.png", "default.png", "downvote.png", "imagelink.png", "link.png", "mask.png", "reddit.png", "text.png", "upvote.png"]
+    for file in assetFiles:
+        assert os.path.exists("/opt/angel-reddit/{}".format(file))
 
 # Create a class as a child of QMainWindow for the main window of the app
 class MainWindow(QMainWindow):
     def __init__(self, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
+        _test_assets()
+        _test_prawini()
         self.initProgram()
 
     def initProgram(self):
@@ -248,6 +271,9 @@ class MainWindow(QMainWindow):
                     # window by default
                     self.mainWidget.setLayout(loginBox)
                     self.setCentralWidget(self.mainWidget)
+                    if ci:
+                        print('[CI] Initialising anonymouns praw.Reddit instance')
+                        self.initAnonReddit()
 
     def onButtonPress(self, s):
         print('click', s)
@@ -310,6 +336,7 @@ class MainWindow(QMainWindow):
                 image = Image.open('/opt/angel-reddit/default.png')
         output = ImageOps.fit(image, mask.size, centering=(0.5, 0.5))
         output.putalpha(mask)
+        _test_tempfiles()
         if isWindows:
             output.save('{0}\\Angel\\temp\\.subimg.{1}'.format(appData))
             return '{0}\\Angel\\temp\\.subimg.{1}'.format(appData)
@@ -691,7 +718,7 @@ class MainWindow(QMainWindow):
                 self.subListButton.setMaximumWidth(25)
                 self.createSubMenu()
                 self.subListButton.setMenu(self.subMenu)
-                self.subMenu.setShortcut("Ctrl + S")
+                self.subMenu.setShortcut("Ctrl+S")
         except AttributeError:
             pass
         self.searchButton = QPushButton('Go')
@@ -792,6 +819,15 @@ class MainWindow(QMainWindow):
 
         # Connect searchButton with subreddit switching function
         self.searchButton.clicked.connect(self.switchSub)
+        if ci:
+            print('[CI] Triggering switchSub...')
+            self.switchSub('announcements')
+            print('[CI] Switched sub\n[CI] Triggering view...')
+            self.view(id=1)
+            time.sleep(10)
+            print('[CI] Integration tests complete\n[CI] Stand by to exit...')
+            time.sleep(0.5)
+            os._exit(0)
 
 
 # Add window widgets
