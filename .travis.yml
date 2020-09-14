@@ -12,6 +12,7 @@ before_install:
  - pip install -U pytest
  - pip install codecov
  - pip install praw pyqt5 requests pillow
+ - sudo apt-get -y install libxcb-xinerama0
 install:
  - make
  - make install
