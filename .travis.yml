@@ -14,4 +14,4 @@ install:
  - make install
 script:
  - make test
- - codecov --cov-report xml:coverage.xml
+ - codecov
