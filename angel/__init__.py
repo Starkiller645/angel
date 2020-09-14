@@ -135,7 +135,7 @@ class AuthorisationWorker(QObject):
         MainWindow.redditUname = MainWindow.reddit.user.me()
         self.done.emit(['one', 'two', 'three'])
         print('[THREAD] Done!\n')
-        self.initUI()
+        window.initUI()
 
 # Create a custom widget class with an implementation of a unique identifier for the submission widgets
 class IDWidget(QCommandLinkButton):
@@ -433,7 +433,7 @@ class MainWindow(QMainWindow):
                 return '{0}\\Angel\\temp\\.subimg.{1}'.format(appData)
         else:
             try:
-                print(output.mode())
+                print(output.mode)
                 output.save('/opt/angel-reddit/temp/.subimg.png')
                 return '/opt/angel-reddit/temp/.subimg.png'
             except OSError:
