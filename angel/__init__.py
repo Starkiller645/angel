@@ -264,10 +264,11 @@ class MainWindow(QMainWindow):
 
 
     def initProgram(self):
+        self.loadingWidget = QLabel()
         submissionImage = None
         self.resize(1080, 640)
         label = QLabel()
-        self.setWindowTitle('Angel v0.7-beta.3')
+        self.setWindowTitle('Angel v0.7-beta.4')
         self.mainWidget = QWidget()
 
         # Setup
