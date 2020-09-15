@@ -9,6 +9,7 @@ cp .\LICENSE .\build\exe.win-amd64-3.8\LICENSE.txt
 echo "[PREPR] Copied LICENSE.txt"
 cp .\angel\assets\* .\build\exe.win-amd64-3.8\
 echo "[PREPR] Copied assets"
+cp -r .\angel\ .\build\exe.win-amd64-3.8\lib\angel
 echo "[PREPR] Done!"
 echo "[MOVNG] Moving files around"
 cd .\build\exe.win-amd64-3.8\

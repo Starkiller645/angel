@@ -14,6 +14,8 @@ import io
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
+from PyQt5.QtWebEngine import *
+from PyQt5.QtWebEngineWidgets import *
 from test import *
 try:
     import pkg_resources.py2_warn
@@ -39,14 +41,18 @@ except:
     sys.__stderr__ = dummyStream()
     sys.__stdin__ = dummyStream()
 
-assert 1 == 1
+if os.environ.get('DEBUG', '') == 'true':
+    debug = True
+else:
+    debug = False
 # Define global variable for environment
 # Check if on Windows or UNIX-Like (Darwin or Linux)
 if os.name != "posix":
     isWindows = True
 else:
     isWindows = False
-print(sys.platform)
+if debug:
+    print(sys.platform)
 
 # Check if running headless for CI workflow
 if os.environ.get("CI", "") == 'true':
@@ -108,7 +114,6 @@ if isWindows:
 else:
     app.setWindowIcon(QIcon('/opt/angel-reddit/angel.ico'))
 
-
 class AuthorisationWorker(QObject):
     done = pyqtSignal(list)
 
@@ -116,31 +121,35 @@ class AuthorisationWorker(QObject):
         super().__init__(parent)
 
     def initReddit(self):
-
-        print(window.loadingWidget)
+        if debug:
+            print(window.loadingWidget)
         window.loadingWidget.show()
         window.loadingGif.start()
 
         # Threading debug code
-        print('\n[THREAD] Started authorisation worker')
+        if debug:
+            print('\n[THREAD] Started authorisation worker')
 
         # Instantiate Reddit class with basic values
         MainWindow.reddit = praw.Reddit(redirect_uri="http://localhost:8080", client_id="Jq0BiuUeIrsr3A", client_secret=None, user_agent="Angel for Reddit v0.5 (by /u/Starkiller645)")
+        print('[DBG] Instantiated Reddit clasws')
+        window.authThread.quit()
+        print('[DBG Quit authThread]')
 
-        # Open webpage to authorisation URL
-        webbrowser.open(MainWindow.reddit.auth.url(["identity", "vote", "read", "mysubreddits", "history"], "...", "permanent"))
-
+    def receiveRedditConnection(self):
         # Receive data connection on localhost:8080
+        print('[DBG] Receiving Reddit data')
         MainWindow.client = receiveConnection()
         data = MainWindow.client.recv(1024).decode("utf-8")
         param_tokens = data.split(" ", 2)[1].split("?", 1)[1].split("&")
         params = {
         key: value for (key, value) in [token.split("=") for token in param_tokens]
         }
-
         # Authorise to Reddit and initRedditassign to variable
+        print('[DBG] Setup data done!')
         MainWindow.code = MainWindow.reddit.auth.authorize(params["code"])
-        print(MainWindow.code)
+        if debug:
+            print(MainWindow.code)
 
         # Add refresh token to praw.ini
         if isWindows:
@@ -152,9 +161,15 @@ class AuthorisationWorker(QObject):
 
         # Initilise UI and assign value to redditUname
         MainWindow.redditUname = MainWindow.reddit.user.me()
-        self.done.emit(['one', 'two', 'three'])
-        print('[THREAD] Done!\n')
-        window.initUI()
+        if debug:
+            print('[THREAD] Done!\n')
+        window.receiveThread.quit()
+
+class WebPageView(QWebEngineView):
+    def __init__(self, url):
+        super().__init__()
+        self.load(QUrl(url))
+        self.show()
 
 # Create a custom widget class with an implementation of a unique identifier for the submission widgets
 class IDWidget(QCommandLinkButton):
@@ -225,7 +240,7 @@ def _test_assets():
         else:
             assert os.path.exists("/opt/angel-reddit/{}".format(file))
 
-# Create a class as a child of QMainWindow for the main window of the app
+# Create a class inheriting from QMainWindow for the main window of the app
 class MainWindow(QMainWindow):
     def __init__(self, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
@@ -233,6 +248,20 @@ class MainWindow(QMainWindow):
         _test_prawini()
         self.loadingWidget = QLabel()
         self.initProgram()
+
+    def runConnect(self):
+        print('[DBG] Running runConnect')
+        self.receiveThread = QThread()
+        self.receive = AuthorisationWorker()
+        self.receive.moveToThread(self.receiveThread)
+        self.receiveThread.finished.connect(self.initUI)
+        self.receiveThread.started.connect(self.receive.receiveRedditConnection)
+        print('[DBG] Starting receiveThread')
+        self.receiveThread.start()
+        print('[DBG] Started receiveThread')
+        self.webpage = WebPageView(self.reddit.auth.url(["identity", "vote", "read", "mysubreddits", "history"], "...", "permanent"))
+
+
 
     def initProgram(self):
         submissionImage = None
@@ -331,7 +360,8 @@ class MainWindow(QMainWindow):
                     self.loadingGif = QMovie('/opt/angel-reddit/loading.gif')
                     self.loadingWidget.setMovie(self.loadingGif)
                     #self.loadingWidget.hide()
-                    print(self.loadingWidget)
+                    if debug:
+                        print(self.loadingWidget)
                     loginBox.addWidget(self.loadingWidget)
                     # Qt5 connect syntax is object.valueThatIsConnected.connect(func.toConnectTo)
                     self.enter.clicked.connect(self.initAnonReddit)
@@ -340,6 +370,7 @@ class MainWindow(QMainWindow):
                     self.worker.moveToThread(self.authThread)
                     self.worker.done.connect(self.initUI)
                     self.authThread.started.connect(self.worker.initReddit)
+                    self.authThread.finished.connect(self.runConnect)
                     self.login.clicked.connect(self.authThread.start)
                     # Set selected widget to be central, taking up the whole
                     # window by default
@@ -353,7 +384,8 @@ class MainWindow(QMainWindow):
                     prawini.close()
                     self.initUI()
                 else:
-                    print('[DBG] Setting up login UI')
+                    if debug:
+                        print('[DBG] Setting up login UI')
                     self.title.setAlignment(Qt.AlignCenter)
                     self.uname = QLineEdit(placeholderText='Username')
                     self.uname.setFixedWidth(300)
@@ -387,12 +419,14 @@ class MainWindow(QMainWindow):
                     # Qt5 connect syntax is object.valueThatIsConnected.connect(func.toConnectTo)
                     self.enter.clicked.connect(self.initAnonReddit)
                     self.authThread = QThread(self)
-                    print('[THREAD] Started auth thread')
+                    if debug:
+                        print('[THREAD] Started auth thread')
                     self.worker = AuthorisationWorker()
                     self.worker.moveToThread(self.authThread)
                     self.worker.done.connect(self.initUI)
                     self.authThread.started.connect(self.worker.initReddit)
-                    print('[THREAD] Waiting for start signal...')
+                    if debug:
+                        print('[THREAD] Waiting for start signal...')
                     self.login.clicked.connect(startAuth)
                     # Set selected widget to be central, taking up the whole
                     # window by default
@@ -401,9 +435,6 @@ class MainWindow(QMainWindow):
                     if ci:
                         print('[CI] Initialising anonymous praw.Reddit instance')
                         self.initAnonReddit()
-
-    def onButtonPress(self, s):
-        print('click', s)
 
     def openAuthUrl(self):
         webbrowser.open(self.reddit.auth.url(["identity"], "...", "permanent"))
@@ -449,7 +480,8 @@ class MainWindow(QMainWindow):
             imageBytes = io.BytesIO(image.content)
             image = Image.open(imageBytes)
             image = image.convert('RGBA')
-            print(image.mode)
+            if debug:
+                print(image.mode)
         else:
             if isWindows:
                 image = Image.open('{}/Angel/default.png'.format(appData))
@@ -473,7 +505,8 @@ class MainWindow(QMainWindow):
                 return '{0}/Angel/temp/.subimg.{1}'.format(appData, 'png')
         else:
             try:
-                print(output.mode)
+                if debug:
+                    print(output.mode)
                 output.save('/opt/angel-reddit/temp/.subimg.png')
                 return '/opt/angel-reddit/temp/.subimg.png'
             except OSError:
@@ -527,14 +560,16 @@ class MainWindow(QMainWindow):
     def view(self, id=False):
         self.hasDownVoted = False
         self.hasUpVoted = False
-        print('[DBG] Started view function')
-        print(self.sender())
+        if debug:
+            print('[DBG] Started view function')
+            print(self.sender())
         if id != False:
             self.widgetNum = id
         else:
             self.widgetNum = self.sender().getID()
-        print("[DBG] Func arg ID is " + str(id))
-        print("[DBG] self.widgetNum is " + str(self.widgetNum))
+        if debug:
+            print("[DBG] Func arg ID is " + str(id))
+            print("[DBG] self.widgetNum is " + str(self.widgetNum))
         self.mainLayout.removeWidget(self.viewWidget)
         if self.viewWidget is not None:
             self.viewWidget.deleteLater()
@@ -554,49 +589,57 @@ class MainWindow(QMainWindow):
         self.mainBodyWidget = QWidget()
         self.urlLayout = QHBoxLayout()
         self.urlBar = QWidget()
-        print('[DBG] Created viewWidget and layout and scroll widget')
+        if debug:
+            print('[DBG] Created viewWidget and layout and scroll widget')
         self.submissionTitle = QLabel()
         self.submissionTitle.setWordWrap(True)
         self.submissionTitle.setStyleSheet('font-size: 42px; font-weight: bold;')
         self.submissionTitle.setText(self.submissionTitleList[self.widgetNum])
         self.submissionTitle.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        print('[DBG] Created submission title widget')
+        if debug:
+            print('[DBG] Created submission title widget')
         self.submissionAuthor = QLabel()
         self.submissionAuthor.setStyleSheet('font-size: 30px; font-style: italic;')
         self.submissionAuthor.setText('u/' + self.submissionAuthorList[self.widgetNum])
         self.submissionAuthor.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        print('[DBG] Created submission author widget')
+        if debug:
+            print('[DBG] Created submission author widget')
         self.submissionBody = QLabel()
         self.submissionBody.setWordWrap(True)
         self.submissionBody.setStyleSheet('font-size: 20px;')
         self.submissionBody.setText(self.submissionDescList[self.widgetNum])
         self.submissionBody.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        print('[DBG] Created submission body widget')
+        if debug:
+            print('[DBG] Created submission body widget')
         if 'i.redd.it' in self.submissionImageUrl[self.widgetNum] or 'imgur.com' in self.submissionImageUrl[self.widgetNum]:
             submissionImage = QLabel()
             preimg = QPixmap(self.fetchImage(self.submissionImageUrl[self.widgetNum]))
             img = preimg.scaledToWidth(500)
             submissionImage.setPixmap(img)
-            print('[DBG] Created pixmap for image')
+            if debug:
+                print('[DBG] Created pixmap for image')
         elif 'reddit.com' not in self.submissionImageUrl[self.widgetNum]:
             submissionImage = QLabel('<a href="{0}" >{0}</a>'.format(self.submissionImageUrl[self.widgetNum]))
             submissionImage.setOpenExternalLinks(True)
             submissionImage.setStyleSheet('font-size: 26px; color: skyblue;')
         else:
             submissionImage = None
-            print('[DBG] Set submissionImage to None')
+            if debug:
+                print('[DBG] Set submissionImage to None')
         self.submissionUrl = QLabel()
         self.submissionUrl.setWordWrap(True)
         self.submissionUrl.setStyleSheet('font-size: 18px;')
         self.submissionUrl.setText('<a href=\"{}\">Link</a>'.format(self.submissionImageUrl[self.widgetNum]))
         self.submissionUrl.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        print('[DBG] Created submission URL widget')
+        if debug:
+            print('[DBG] Created submission URL widget')
         self.submissionScore = QWidget()
 
         # Set up Score (Combined up- and downvotes) widget, to be able to view upvotes
         self.upvoteLabel = QToolButton()
         self.downvoteLabel = QToolButton()
-        print('[DBG] Creating score label')
+        if debug:
+            print('[DBG] Creating score label')
         if isWindows:
             self.upvotePixmap = QIcon("{}/Angel/upvote.png".format(appData))
             self.downvotePixmap = QIcon("{}/Angel/downvote.png".format(appData))
@@ -608,21 +651,26 @@ class MainWindow(QMainWindow):
         self.currentPost = praw.models.Submission(self.reddit, id=self.submissionIDList[self.widgetNum])
         self.upvoteLabel.clicked.connect(lambda null, sm=self.currentPost: self.giveUpvote(sm))
         self.downvoteLabel.clicked.connect(lambda null, sm=self.currentPost: self.giveDownvote(sm))
-        print('[DBG] Set pixmap')
+        if debug:
+            print('[DBG] Set pixmap')
         self.scoreLayout = QHBoxLayout()
         self.scre = QLabel()
-        print('[DBG] Created score widget')
+        if debug:
+            print('[DBG] Created score widget')
         self.scre.setText("<b>{}</b>".format(self.submissionScoreList[self.widgetNum]))
         self.scre.setAlignment(Qt.AlignCenter)
-        print('[DBG] Set text of score widget')
+        if debug:
+            print('[DBG] Set text of score widget')
         self.scoreLayout.addWidget(self.upvoteLabel)
         self.scoreLayout.addWidget(self.scre)
         self.scoreLayout.addWidget(self.downvoteLabel)
-        print('[DBG] Added widgets to score layout')
+        if debug:
+            print('[DBG] Added widgets to score layout')
         self.submissionScore.setLayout(self.scoreLayout)
         self.submissionScore.setMaximumHeight(75)
         self.submissionScore.setMaximumWidth(200)
-        print('[DBG] Created score widget')
+        if debug:
+            print('[DBG] Created score widget')
 
 
         self.submissionUrl.setOpenExternalLinks(True)
@@ -639,9 +687,11 @@ class MainWindow(QMainWindow):
         self.viewLayout.addWidget(self.submissionScore)
         self.viewWidget.setLayout(self.viewLayout)
         self.mainLayout.addWidget(self.viewWidget)
-        print('[DBG] Added widgets to mainLayout and viewWidget')
+        if debug:
+            print('[DBG] Added widgets to mainLayout and viewWidget')
         self.viewWidget.show()
-        print('[DBG] Showing viewWidget')
+        if debug:
+            print('[DBG] Showing viewWidget')
 
     def showSubDesc(self):
         self.mainLayout.removeWidget(self.viewWidget)
@@ -663,7 +713,8 @@ class MainWindow(QMainWindow):
 
     # Define function to switch between subreddits
     def switchSub(self, subreddit=None):
-        print(subreddit)
+        if debug:
+            print(subreddit)
         self.status.setText('Retrieving submissions')
         time.sleep(0.5)
 
@@ -681,7 +732,8 @@ class MainWindow(QMainWindow):
         self.clearLayout(self.subList)
         self.subList = QVBoxLayout()
         self.subredditBar = QWidget()
-        print(subreddit)
+        if debug:
+            print(subreddit)
         if subreddit != None and subreddit != True and subreddit != False:
             self.sub = self.reddit.subreddit(subreddit)
         else:
@@ -703,7 +755,8 @@ class MainWindow(QMainWindow):
                     self.subWidgetList.append(IDWidget(submission.title[:70] + '...', parent=self.subredditBar))
                 else:
                     self.subWidgetList.append(IDWidget(submission.title))
-                print()
+                if debug:
+                    print()
                 self.i += 1
 
         except prawcore.exceptions.RequestException:
@@ -711,21 +764,26 @@ class MainWindow(QMainWindow):
             self.status.setText('Error - Timed out or sub does not exist')
         self.setSubMeta(self.sub)
         self.showSubDesc()
-        print(self.subWidgetList)
+        if debug:
+            print(self.subWidgetList)
         for self.i in range(len(self.submissionIDList)):
             if len(self.submissionDescList[self.i]) > 100:
                 working = self.subWidgetList[self.i]
                 self.subWidgetList[self.i].setDescription(self.submissionDescList[self.i][:100] + '...')
-                print('Getting submission #' + self.submissionIDList[self.i] + ': ' + self.submissionTitleList[self.i])
-                print('Set description of submission')
+                if debug:
+                    print('Getting submission #' + self.submissionIDList[self.i] + ': ' + self.submissionTitleList[self.i])
+                    print('Set description of submission')
             else:
-                print('Getting submission #' + self.submissionIDList[self.i] + ': ' + self.submissionTitleList[self.i])
+                if debug:
+                    print('Getting submission #' + self.submissionIDList[self.i] + ': ' + self.submissionTitleList[self.i])
                 self.subWidgetList[self.i].setDescription(self.submissionDescList[self.i])
-                print('Set description of submission')
+                if debug:
+                    print('Set description of submission')
             self.subWidgetList[self.i].show()
             self.subWidgetList[self.i].setID(id=self.i)
             self.subWidgetList[self.i].setText(self.submissionTitleList[self.i])
-            print('Set text of submission')
+            if debug:
+                print('Set text of submission')
             self.subWidgetList[self.i].clicked.connect(self.view)
             self.subList.addWidget(self.subWidgetList[self.i])
             if 'reddit.com' in self.submissionImageUrl[self.i]:
@@ -734,7 +792,8 @@ class MainWindow(QMainWindow):
                 self.subWidgetList[self.i].setIcon(self.imageIcon)
             else:
                 self.subWidgetList[self.i].setIcon(self.linkIcon)
-            print(self.subWidgetList[self.i].id)
+            if debug:
+                print(self.subWidgetList[self.i].id)
             self.subredditBar.setLayout(self.subList)
             self.subWidgetList[self.i].setFixedHeight(100)
             self.subWidgetList[self.i].setFixedWidth(460)
@@ -757,8 +816,9 @@ class MainWindow(QMainWindow):
         loggedIn = False
         self.title.setText('Attempting to connect to reddit')
         self.reddit = praw.Reddit(redirect_uri="http://localhost:8080", client_id="Jq0BiuUeIrsr3A", client_secret=None, user_agent="Angel for Reddit v0.5 (by /u/Starkiller645)")
-        print(self.reddit)
-        print(self.reddit.auth.url(["identity", "vote", "read", "mysubreddits", "history"], "...", "permanent"))
+        if debug:
+            print(self.reddit)
+            print(self.reddit.auth.url(["identity", "vote", "read", "mysubreddits", "history"], "...", "permanent"))
         self.initUI()
 
 
@@ -774,6 +834,7 @@ class MainWindow(QMainWindow):
         else:
             action = menu.addAction(dictionary)
             action.setIconVisibleInMenu(False)
+        return 0
 
     def createSubMenu(self):
         self.subListRaw = list(self.reddit.user.subreddits(limit=None))
@@ -781,17 +842,21 @@ class MainWindow(QMainWindow):
         self.subredditList = []
         for subreddit in self.subListRaw:
             self.subredditList.append(subreddit.display_name)
-            print("[DBG] " + subreddit.display_name)
-        print(self.subredditList)
+            if debug:
+                print("[DBG] " + subreddit.display_name)
+        if debug:
+            print(self.subredditList)
         i = 0
         for currentSub in self.subredditList:
             self.subMenu.addAction(currentSub)
-            print(self.subMenu.actions()[i])
-            print(self.subredditList[i])
-            print(currentSub)
+            if debug:
+                print(self.subMenu.actions()[i])
+                print(self.subredditList[i])
+                print(currentSub)
             self.subMenu.actions()[i].triggered.connect(lambda null, s=currentSub: self.switchSub(s))
             i += 1
-            print(i)
+            if debug:
+                print(i)
 
 
 
@@ -803,7 +868,8 @@ class MainWindow(QMainWindow):
             else:
                 os.remove("{}/.config/praw.ini".format(envHome))
         except OSError:
-            print("[ERR] praw.ini does not exist, so cannot be deleted\n[ERR] Please check /opt/angel-reddit on POSIX OSes or\n[ERR] %APPDATA%/Angel on Win10")
+            if debug:
+                print("[ERR] praw.ini does not exist, so cannot be deleted\n[ERR] Please check /opt/angel-reddit on POSIX OSes or\n[ERR] %APPDATA%/Angel on Win10")
         finally:
             self.toolbar.close()
             self.toolbar.deleteLater()
@@ -822,6 +888,7 @@ class MainWindow(QMainWindow):
     # Function call to initialise the main UI of the program
     def initUI(self):
         # Begin to set up toolbar
+        self.webpage = None
         self.searchSubs = QLineEdit(placeholderText="r/subreddit")
         try:
             if self.redditUname is not None:
@@ -830,6 +897,8 @@ class MainWindow(QMainWindow):
                 self.createSubMenu()
                 self.subListButton.setMenu(self.subMenu)
                 self.subMenu.setShortcut("Ctrl+S")
+                if debug:
+                    print('[DBG] Added list of subs')
         except AttributeError:
             pass
         self.searchButton = QPushButton('Go')
@@ -840,6 +909,8 @@ class MainWindow(QMainWindow):
         self.toolbar = QToolBar()
         self.hasUpVoted = False
         self.hasDownVoted = False
+        if debug:
+            print('[DBG] Set the left side of toolbar up')
 
         # Create null buttons for UP and DOWN keys
         self.widgetNum = 0
@@ -872,6 +943,8 @@ class MainWindow(QMainWindow):
         self.createMenu(self.menuEntryArray, self.menu)
         self.menuButton.setMenu(self.menu)
         self.menu.triggered.connect(self.logOut)
+        if debug:
+            print('[DBG] Set up right side of toolbar')
 
         # Finish setting up toolbar
         self.spacer1 = QWidget()
@@ -883,12 +956,18 @@ class MainWindow(QMainWindow):
             self.subIconPixmap = QPixmap()
         else:
             self.subIconPixmap = QPixmap()
-        self.subIcon.setPixmap(self.subIconPixmap)
-        self.subIcon.show()
+        if debug:
+            print('[DBG] Set pixmaps')
+        #self.subIcon.setPixmap(self.subIconPixmap)
+        #self.subIcon.show()
+        if debug:
+            print('[DBG] Showing pixmaps')
         self.subHeader = QLabel('r/none')
         self.subHeader.setStyleSheet('font-weight: bold; font-size: 30px;')
         self.status.setAlignment(Qt.AlignCenter)
         self.addToolBar(self.toolbar)
+        if debug:
+            print('[DBG] Added toolbar')
 
         # Add widgets to toolbar
         self.toolbar.addWidget(self.searchSubs)
@@ -904,6 +983,8 @@ class MainWindow(QMainWindow):
         self.toolbar.addWidget(self.spacer2)
         self.toolbar.addWidget(self.status)
         self.toolbar.addWidget(self.menuButton)
+        if debug:
+            print('[DBG] Toolbar done!')
 
         # Set main layout
         self.mainLayout = QHBoxLayout()
@@ -918,18 +999,28 @@ class MainWindow(QMainWindow):
         self.subScroll = QScrollArea()
         self.subScroll.setWidget(self.subredditBar)
         self.subScroll.widgetResizable = True
+        if debug:
+            print('[DBG] Set main layout')
 
         # Set up left-side scroll area for the submission list
+        if debug:
+            print('[DBG] Setting up scroll area')
         self.scroll = QScrollArea()
         self.viewWidget = QLabel('Wow, such empty!')
         self.scroll.setWidget(self.subredditBar)
         self.mainLayout.addWidget(self.subScroll)
         self.window.setLayout(self.mainLayout)
         self.window.setStyleSheet('@import url("https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&display=swap"); font-family: Lato')
+        if debug:
+            print('[DBG] Setting central widget as window')
         self.setCentralWidget(self.window)
+        if debug:
+            print('[DBG] Set central widget as window')
 
         # Connect searchButton with subreddit switching function
         self.searchButton.clicked.connect(self.switchSub)
+        if isWindows:
+            return
         if ci:
             print('[CI] Triggering switchSub...')
             self.switchSub('announcements')
@@ -942,6 +1033,7 @@ class MainWindow(QMainWindow):
 
 
 # Add window widgets
+mainThread = QCoreApplication.instance().thread()
 window = MainWindow()
 window.show()
 
