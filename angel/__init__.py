@@ -46,7 +46,7 @@ def receiveConnection():
 
 def initPrawINI():
     if isWindows:
-        prawini = open("{}\\Angel\\praw.ini".format(os.environ.get("APPDATA", "")))
+        prawini = open("{}/Angel/praw.ini".format(os.environ.get("APPDATA", "")))
     else:
         prawini = open("{}/.config/praw.ini".format(envHome), "w+")
     prawini.write('[angel]\n')
@@ -59,12 +59,12 @@ envHome = os.environ.get("HOME", "")
 appData = os.environ.get("APPDATA", "")
 
 # Initialise praw.ini file if it does not exist
-if os.path.exists("{}/.config/praw.ini".format(envHome)) or os.path.exists("{}\Angel\\\praw.ini".format(appData)):
+if os.path.exists("{}/.config/praw.ini".format(envHome)) or os.path.exists("{}/Angel/praw.ini".format(appData)):
     if isWindows:
-        with open("{}\\Angel\\praw.ini".format(appData)) as prawini:
+        with open("{}/Angel/praw.ini".format(appData)) as prawini:
             if "[DEFAULT]" in prawini.read():
                 prawini.close()
-                os.remove("{}\\Angel\\praw.ini".format(appData))
+                os.remove("{}/Angel/praw.ini".format(appData))
                 initPrawINI()
             else:
                 prawiniExists = True
@@ -85,7 +85,7 @@ app = QApplication(sys.argv)
 if sys.platform == "darwin":
     app.setStyle('Fusion')
 if isWindows:
-    app.setWindowIcon(QIcon('{}\\Angel\\angel.ico'.format(appData)))
+    app.setWindowIcon(QIcon('{}/Angel/angel.ico'.format(appData)))
 else:
     app.setWindowIcon(QIcon('/opt/angel-reddit/angel.ico'))
 
@@ -125,7 +125,7 @@ class AuthorisationWorker(QObject):
 
         # Add refresh token to praw.ini
         if isWindows:
-            with open("{}\\Angel\\praw.ini".format(appData), "a") as prawini:
+            with open("{}/Angel/praw.ini".format(appData), "a") as prawini:
                 prawini.write('\nrefresh_token={}'.format(MainWindow.code))
         else:
             with open("{}/.config/praw.ini".format(envHome), "a") as prawini:
@@ -160,7 +160,7 @@ class RequestTimeOut(QWidget):
         self.headerWidget.setStyleSheet('font-size: 40px;')
         self.headerWidget.setText('<b>Error</b> Request timed out')
         if isWindows:
-            self.image = QPixmap('{}\\Angel\\error408'.format(appData))
+            self.image = QPixmap('{}/Angel/error408'.format(appData))
         else:
             self.image = QPixmap('/opt/angel-reddit/error408')
         self.imageWidget.setPixmap(self.image)
@@ -198,13 +198,13 @@ class MainWindow(QMainWindow):
         submissionImage = None
         self.resize(1080, 640)
         label = QLabel()
-        self.setWindowTitle('Angel v0.6.3-beta')
+        self.setWindowTitle('Angel v0.6.4-beta')
         self.mainWidget = QWidget()
 
         # Setup
         scriptDir = os.path.dirname(os.path.realpath(__file__))
         if isWindows:
-            self.setWindowIcon(QIcon('{}\\Angel\\angel.ico'.format(appData)))
+            self.setWindowIcon(QIcon('{}/Angel/angel.ico'.format(appData)))
         else:
             self.setWindowIcon(QIcon('/opt/angel-reddit/angel.ico'))
 
@@ -215,7 +215,7 @@ class MainWindow(QMainWindow):
 
         # Create angel pixmap
         if isWindows:
-            pixmap = QPixmap('{}\\Angel\\angel.png'.format(appData))
+            pixmap = QPixmap('{}/Angel/angel.png'.format(appData))
         else:
             pixmap = QPixmap('/opt/angel-reddit/angel.png')
         pixmap = pixmap.scaled(300, 300, Qt.KeepAspectRatio)
@@ -229,12 +229,12 @@ class MainWindow(QMainWindow):
         loginBox.addWidget(label)
         loginBox.setAlignment(Qt.AlignCenter)
 
-        if os.path.exists("{}/.config/praw.ini".format(envHome)) or os.path.exists("{}\Angel\\\praw.ini".format(appData)):
+        if os.path.exists("{}/.config/praw.ini".format(envHome)) or os.path.exists("{}/Angel/praw.ini".format(appData)):
             if isWindows:
-                with open("{}\\Angel\\praw.ini".format(appData)) as prawini:
+                with open("{}/Angel/praw.ini".format(appData)) as prawini:
                     if "[DEFAULT]" in prawini.read():
                         prawini.close()
-                        os.remove("{}\\Angel\\praw.ini".format(appData))
+                        os.remove("{}/Angel/praw.ini".format(appData))
                         initPrawINI()
                     else:
                         prawiniExists = True
@@ -271,7 +271,7 @@ class MainWindow(QMainWindow):
                     self.login.setFixedWidth(300)
                     self.login.setFixedHeight(80)
                     if isWindows:
-                        self.redditIcon = QIcon("{}\Angel\reddit.png".format(appData))
+                        self.redditIcon = QIcon("{}/Angel/reddit.png".format(appData))
                     else:
                         self.redditIcon = QIcon("/opt/angel-reddit/reddit.png")
                     self.login.setIconSize(QSize(300, 85))
@@ -375,8 +375,8 @@ class MainWindow(QMainWindow):
         imageBytes = io.BytesIO(image.content)
         image = Image.open(imageBytes)
         if isWindows:
-            image.save('{0}\\Angel\\temp\\.img.{1}'.format(appData, image.format.lower()))
-            return '{0}\\Angel\\temp\\.img.{1}'.format(appData, image.format.lower())
+            image.save('{0}/Angel/temp/.img.{1}'.format(appData, image.format.lower()))
+            return '{0}/Angel/temp/.img.{1}'.format(appData, image.format.lower())
         else:
             image.save('/opt/angel-reddit/temp/.img.{}'.format(image.format.lower()))
             return '/opt/angel-reddit/temp/.img.{}'.format(image.format.lower())
@@ -389,8 +389,8 @@ class MainWindow(QMainWindow):
         imageBytes = io.BytesIO(image.content)
         image = Image.open(imageBytes)
         if isWindows:
-            image.save('{0}\\Angel\\temp\\.img.{1}'.format(appData, image.format.lower()))
-            return '{0}\\Angel\\temp\\.img.{1}'.format(appData, (image.format).abspath("."), relative)
+            image.save('{0}/Angel/temp/.img.{1}'.format(appData, image.format.lower()))
+            return '{0}/Angel/temp/.img.{1}'.format(appData, (image.format).abspath("."), relative)
         else:
             image.save('/opt/angel-reddit/temp/.img.{}'.format(image.format))
             return '/opt/angel-reddit/temp/.img.{}'.format((image.format).abspath("."), relative)
@@ -401,7 +401,7 @@ class MainWindow(QMainWindow):
 
     def getSubIcon(self, sub):
         if isWindows:
-            mask = Image.open('{}\\Angel\\mask.png'.format(appData)).convert('L')
+            mask = Image.open('{}/Angel/mask.png'.format(appData)).convert('L')
         else:
             mask = Image.open('/opt/angel-reddit/mask.png').convert('L')
         if 'http' in sub.icon_img:
@@ -412,7 +412,7 @@ class MainWindow(QMainWindow):
             print(image.mode)
         else:
             if isWindows:
-                image = Image.open('{}\\Angel\\default.png'.format(appData))
+                image = Image.open('{}/Angel/default.png'.format(appData))
             else:
                 image = Image.open('/opt/angel-reddit/default.png')
         output = ImageOps.fit(image, mask.size, centering=(0.5, 0.5))
@@ -421,16 +421,16 @@ class MainWindow(QMainWindow):
         _test_tempfiles()
         if isWindows:
             try:
-                output.save('{0}\\Angel\\temp\\.subimg.{1}'.format(appData))
+                output.save('{0}/Angel/temp/.subimg.{1}'.format(appData))
             except OSError:
-                image = Image.open('{}\\Angel\\default.png'.format(appData))
+                image = Image.open('{}/Angel/default.png'.format(appData))
                 output = ImageOps.fit(image, mask.size, centering=(0.5, 0.5))
                 output = output.convert('RGBA')
                 output.putalpha(mask)
-                output.save('{0}\\Angel\\temp\\.subimg.{1}'.format(appData))
-                return '{0}\\Angel\\temp\\.subimg.{1}'.format(appData)
+                output.save('{0}/Angel/temp/.subimg.{1}'.format(appData))
+                return '{0}/Angel/temp/.subimg.{1}'.format(appData)
             else:
-                return '{0}\\Angel\\temp\\.subimg.{1}'.format(appData)
+                return '{0}/Angel/temp/.subimg.{1}'.format(appData)
         else:
             try:
                 print(output.mode)
@@ -625,9 +625,9 @@ class MainWindow(QMainWindow):
 
         # Set up icons for the various post types
         if isWindows:
-            self.textIcon = QIcon('{}\\Angel\\text.png')
-            self.linkIcon = QIcon('{}\\Angel\\link.png')
-            self.imageIcon = QIcon('{}\\Angel\\imagelink.png')
+            self.textIcon = QIcon('{}/Angel/text.png')
+            self.linkIcon = QIcon('{}/Angel/link.png')
+            self.imageIcon = QIcon('{}/Angel/imagelink.png')
         else:
             self.textIcon = QIcon('/opt/angel-reddit/text.png')
             self.linkIcon = QIcon('/opt/angel-reddit/link.png')
@@ -755,11 +755,11 @@ class MainWindow(QMainWindow):
     def logOut(self):
         try:
             if isWindows:
-                os.remove("{}\Angel\praw.ini".format(appData))
+                os.remove("{}/Angel/praw.ini".format(appData))
             else:
                 os.remove("{}/.config/praw.ini".format(envHome))
         except OSError:
-            print("[ERR] praw.ini does not exist, so cannot be deleted\n[ERR] Please check /opt/angel-reddit on POSIX OSes or\n[ERR] %APPDATA%\\Angel on Win10")
+            print("[ERR] praw.ini does not exist, so cannot be deleted\n[ERR] Please check /opt/angel-reddit on POSIX OSes or\n[ERR] %APPDATA%/Angel on Win10")
         finally:
             self.toolbar.close()
             self.toolbar.deleteLater()
