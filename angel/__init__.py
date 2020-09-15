@@ -46,7 +46,7 @@ def receiveConnection():
 
 def initPrawINI():
     if isWindows:
-        prawini = open("{}/Angel/praw.ini".format(os.environ.get("APPDATA", "")))
+        prawini = open("{}/praw.ini".format(os.environ.get("APPDATA", "").replace("\\", "/")), "w+")
     else:
         prawini = open("{}/.config/praw.ini".format(envHome), "w+")
     prawini.write('[angel]\n')
@@ -56,15 +56,15 @@ def initPrawINI():
 
 # Get OS-specific env variables
 envHome = os.environ.get("HOME", "")
-appData = os.environ.get("APPDATA", "")
+appData = os.environ.get("APPDATA", "").replace("\\", "/")
 
 # Initialise praw.ini file if it does not exist
-if os.path.exists("{}/.config/praw.ini".format(envHome)) or os.path.exists("{}/Angel/praw.ini".format(appData)):
+if os.path.exists("{}/.config/praw.ini".format(envHome)) or os.path.exists("{}/praw.ini".format(appData)):
     if isWindows:
-        with open("{}/Angel/praw.ini".format(appData)) as prawini:
+        with open("{}/praw.ini".format(appData)) as prawini:
             if "[DEFAULT]" in prawini.read():
                 prawini.close()
-                os.remove("{}/Angel/praw.ini".format(appData))
+                os.remove("{}/praw.ini".format(appData))
                 initPrawINI()
             else:
                 prawiniExists = True
@@ -125,7 +125,7 @@ class AuthorisationWorker(QObject):
 
         # Add refresh token to praw.ini
         if isWindows:
-            with open("{}/Angel/praw.ini".format(appData), "a") as prawini:
+            with open("{}/praw.ini".format(appData), "a") as prawini:
                 prawini.write('\nrefresh_token={}'.format(MainWindow.code))
         else:
             with open("{}/.config/praw.ini".format(envHome), "a") as prawini:
@@ -175,15 +175,36 @@ def startAuth():
 # These are callable from the MainWindow class and test certain aspects
 # of the program at certain times
 def _test_prawini():
-    assert os.path.exists("{}/.config/praw.ini".format(envHome)) == True
+    if isWindows:
+        assert os.path.exists("{}/praw.ini".format(appData)) == True
+    else:
+        assert os.path.exists("{}/.config/praw.ini".format(envHome)) == True
 
 def _test_tempfiles():
-    assert os.path.exists("/opt/angel-reddit/temp/") == True
+    if isWindows:
+        try:
+            assert os.path.exists("{}/Angel/temp".format(appData))
+        except AssertionError:
+            try:
+                os.mkdir("{}/Angel/temp".format(appData))
+            except:
+                raise AssertionError
+    else:
+        try:
+            assert os.path.exists("/opt/angel-reddit/temp/") == True
+        except AssertionError:
+            try:
+                os.mkdir("/opt/angel-reddit/temp/")
+            except:
+                raise AssertionError
 
 def _test_assets():
     assetFiles = ["angel.ico", "angel.png", "default.png", "downvote.png", "imagelink.png", "link.png", "mask.png", "reddit.png", "text.png", "upvote.png"]
     for file in assetFiles:
-        assert os.path.exists("/opt/angel-reddit/{}".format(file))
+        if isWindows:
+            assert os.path.exists("{0}/Angel/{1}".format(appData, file))
+        else:
+            assert os.path.exists("/opt/angel-reddit/{}".format(file))
 
 # Create a class as a child of QMainWindow for the main window of the app
 class MainWindow(QMainWindow):
@@ -198,7 +219,7 @@ class MainWindow(QMainWindow):
         submissionImage = None
         self.resize(1080, 640)
         label = QLabel()
-        self.setWindowTitle('Angel v0.6.4-beta')
+        self.setWindowTitle('Angel v0.7-beta')
         self.mainWidget = QWidget()
 
         # Setup
@@ -229,12 +250,12 @@ class MainWindow(QMainWindow):
         loginBox.addWidget(label)
         loginBox.setAlignment(Qt.AlignCenter)
 
-        if os.path.exists("{}/.config/praw.ini".format(envHome)) or os.path.exists("{}/Angel/praw.ini".format(appData)):
+        if os.path.exists("{}/.config/praw.ini".format(envHome)) or os.path.exists("{}/praw.ini".format(appData)):
             if isWindows:
-                with open("{}/Angel/praw.ini".format(appData)) as prawini:
+                with open("{}/praw.ini".format(appData)) as prawini:
                     if "[DEFAULT]" in prawini.read():
                         prawini.close()
-                        os.remove("{}/Angel/praw.ini".format(appData))
+                        os.remove("{}/praw.ini".format(appData))
                         initPrawINI()
                     else:
                         prawiniExists = True
@@ -421,16 +442,16 @@ class MainWindow(QMainWindow):
         _test_tempfiles()
         if isWindows:
             try:
-                output.save('{0}/Angel/temp/.subimg.{1}'.format(appData))
+                output.save('{0}/Angel/temp/.subimg.{1}'.format(appData, 'png'))
             except OSError:
-                image = Image.open('{}/Angel/default.png'.format(appData))
+                image = Image.open('{}/Angel/default.png'.format(appData, 'png'))
                 output = ImageOps.fit(image, mask.size, centering=(0.5, 0.5))
                 output = output.convert('RGBA')
                 output.putalpha(mask)
-                output.save('{0}/Angel/temp/.subimg.{1}'.format(appData))
-                return '{0}/Angel/temp/.subimg.{1}'.format(appData)
+                output.save('{0}/Angel/temp/.subimg.{1}'.format(appData, 'png'))
+                return '{0}/Angel/temp/.subimg.{1}'.format(appData, 'png')
             else:
-                return '{0}/Angel/temp/.subimg.{1}'.format(appData)
+                return '{0}/Angel/temp/.subimg.{1}'.format(appData, 'png')
         else:
             try:
                 print(output.mode)
@@ -557,8 +578,12 @@ class MainWindow(QMainWindow):
         self.upvoteLabel = QToolButton()
         self.downvoteLabel = QToolButton()
         print('[DBG] Creating score label')
-        self.upvotePixmap = QIcon("/opt/angel-reddit/upvote.png")
-        self.downvotePixmap = QIcon("/opt/angel-reddit/downvote.png")
+        if isWindows:
+            self.upvotePixmap = QIcon("{}/Angel/upvote.png".format(appData))
+            self.downvotePixmap = QIcon("{}/Angel/downvote.png".format(appData))
+        else:
+            self.upvotePixmap = QIcon("/opt/angel-reddit/upvote.png")
+            self.downvotePixmap = QIcon("/opt/angel-reddit/downvote.png")
         self.upvoteLabel.setIcon(self.upvotePixmap)
         self.downvoteLabel.setIcon(self.downvotePixmap)
         self.currentPost = praw.models.Submission(self.reddit, id=self.submissionIDList[self.widgetNum])
@@ -755,7 +780,7 @@ class MainWindow(QMainWindow):
     def logOut(self):
         try:
             if isWindows:
-                os.remove("{}/Angel/praw.ini".format(appData))
+                os.remove("{}/praw.ini".format(appData))
             else:
                 os.remove("{}/.config/praw.ini".format(envHome))
         except OSError:
