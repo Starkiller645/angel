@@ -419,15 +419,12 @@ class MainWindow(QMainWindow):
                     # Qt5 connect syntax is object.valueThatIsConnected.connect(func.toConnectTo)
                     self.enter.clicked.connect(self.initAnonReddit)
                     self.authThread = QThread(self)
-                    if debug:
-                        print('[THREAD] Started auth thread')
                     self.worker = AuthorisationWorker()
                     self.worker.moveToThread(self.authThread)
                     self.worker.done.connect(self.initUI)
                     self.authThread.started.connect(self.worker.initReddit)
-                    if debug:
-                        print('[THREAD] Waiting for start signal...')
-                    self.login.clicked.connect(startAuth)
+                    self.authThread.finished.connect(self.runConnect)
+                    self.login.clicked.connect(self.authThread.start)
                     # Set selected widget to be central, taking up the whole
                     # window by default
                     self.mainWidget.setLayout(loginBox)
