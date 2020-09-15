@@ -1,5 +1,7 @@
 language: python
 dist: bionic
+env:
+  - DEBUG=true
 services:
   - xvfb
 python:
