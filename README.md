@@ -21,7 +21,7 @@ Angel - a Reddit client for the Linux desktop, built using PyQt5
 * Add functionality to scrape and view Reddit urls (/r/...) from posts
 
 # Installation
-I haven't got distro packages working on any level yet, but hopefully that should come soon
+I haven't got distro packages working on any level yet, but hopefully that should come soon.
 
 1. `git clone https://github.com/Starkiller645/angel.git; cd angel`
 2. `make`
@@ -39,6 +39,8 @@ To run Angel with the included continuous integration tests:
 2. `angel` (if make-installed) / `angel/__init__.py` (if running from source)
 
 # Requirements
-These should be the same for all distros, but open an issue if there is a difference
+These should be the same for all distros, but open an issue if there is a difference.
+Only use one installation method if possible.
 
-* Distro packages: `python3 python3-praw python3-pillow python3-pyqt5 python3-requests python3-setuptools`
+* PyPi packages: `praw pillow pyqt5 requests setuptools pytest`
+* Distro packages: `python3 python3-praw python3-pillow python3-pyqt5 python3-requests python3-setuptools python3-pytest`
