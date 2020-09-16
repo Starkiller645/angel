@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 # Import required libraries
+
 import pytest
 import sys
 import time
@@ -8,9 +9,11 @@ import prawcore
 import os
 import webbrowser
 import socket
+import json
 from PIL import Image, ImageOps
 import requests
 import io
+from wget import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
@@ -416,6 +419,7 @@ class MainWindow(QMainWindow):
                     self.loadingWidget.setMovie(self.loadingGif)
                     self.loadingWidget.setAlignment(Qt.AlignCenter)
                     self.loadingWidget.hide()
+                    self.loadingGif.start()
                     loginBox.addWidget(self.loadingWidget)
                     # Qt5 connect syntax is object.valueThatIsConnected.connect(func.toConnectTo)
                     self.enter.clicked.connect(self.initAnonReddit)
@@ -616,12 +620,52 @@ class MainWindow(QMainWindow):
             submissionImage.setPixmap(img)
             if debug:
                 print('[DBG] Created pixmap for image')
+            submissionVideo = None
+        elif 'v.redd.it' in self.submissionImageUrl[self.widgetNum]:
+            submissionVideo = QWebEngineView()
+            jsonUrl = self.submissionImageUrl[self.widgetNum]
+            if isWindows:
+                jsonFile = open('{}/Angel/temp/vid_json.json'.format(appData), 'wb')
+            else:
+                jsonFile = open('/opt/angel-reddit/temp/vid_json.json', 'wb')
+            initRequest = requests.get(jsonUrl)
+            request = initRequest.url
+            request = request[:len(request) - 1]
+            request += '.json'
+            print(request)
+            finalRequest = requests.get(request, headers = {"User-agent" : "Angel for Reddit (by /u/Starkiller645)"})
+            jsonFile.write(finalRequest.content)
+            jsonFile.close()
+            if isWindows:
+                jsonFile = open('{}/Angel/temp/vid_json.json'.format(appData), 'r')
+            else:
+                jsonFile = open('/opt/angel-reddit/temp/vid_json.json', 'r')
+            parsedJson = json.loads(jsonFile.read())
+            print(jsonFile.read())
+            print(parsedJson)
+            print(parsedJson[0]["data"]["children"][0]["data"]["secure_media"]["reddit_video"]["fallback_url"])
+            rawUrl = parsedJson[0]["data"]["children"][0]["data"]["secure_media"]["reddit_video"]["fallback_url"]
+            audioUrl = rawUrl[:rawUrl.rfind('/')] + '/audio'
+            print(audioUrl)
+            submissionVideo.setUrl(QUrl(rawUrl))
+            submissionImage = None
+            submissionVideo.setMaximumWidth(700)
+        elif 'youtube.com' in self.submissionImageUrl[self.widgetNum]:
+            submissionVideo = QWebEngineView()
+            ytEmbedUrl = self.submissionImageUrl[self.widgetNum].split("?v=")[1]
+            print(ytEmbedUrl)
+            submissionVideo.setHtml("<!DOCTYPE html><html><head><style type=\"text/css\">body {{margin: 0}}</style></head><body><iframe id=\"ytplayer\" type=\"text/html\" width=\"636\" height=\"480\" src=\"https://youtube.com/embed/{}\"></body></html>".format(ytEmbedUrl))
+            submissionVideo.setMaximumWidth(700)
+            submissionImage = None
         elif 'reddit.com' not in self.submissionImageUrl[self.widgetNum]:
             submissionImage = QLabel('<a href="{0}" >{0}</a>'.format(self.submissionImageUrl[self.widgetNum]))
             submissionImage.setOpenExternalLinks(True)
             submissionImage.setStyleSheet('font-size: 26px; color: skyblue;')
+            submissionImage = None
+            submissionVideo = None
         else:
             submissionImage = None
+            submissionVideo = None
             if debug:
                 print('[DBG] Set submissionImage to None')
         self.submissionUrl = QLabel()
@@ -630,6 +674,7 @@ class MainWindow(QMainWindow):
         self.submissionUrl.setText('<a href=\"{}\">Link</a>'.format(self.submissionImageUrl[self.widgetNum]))
         self.submissionUrl.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         if debug:
+            print('[DBG] Submission image url is {}'.format(self.submissionImageUrl[self.widgetNum]))
             print('[DBG] Created submission URL widget')
         self.submissionScore = QWidget()
 
@@ -676,6 +721,9 @@ class MainWindow(QMainWindow):
         self.mainBody.addWidget(self.submissionAuthor)
         if submissionImage is not None:
             self.mainBody.addWidget(submissionImage)
+            submissionImage.show()
+        if submissionVideo is not None:
+            self.mainBody.addWidget(submissionVideo)
         self.mainBody.addWidget(self.submissionBody)
         self.mainBodyWidget.setLayout(self.mainBody)
         self.scroll.setWidget(self.mainBodyWidget)
