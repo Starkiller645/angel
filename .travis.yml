@@ -4,6 +4,7 @@ env:
   - DEBUG=true
 services:
   - xvfb
+  - pulse
 python:
  - 3.6
  - 3.8
@@ -13,7 +14,7 @@ before_install:
  - pip install -U pytest
  - pip install codecov
  - pip install praw pyqt5 requests pillow PyQtWebEngine wget ffmpeg-python
- - sudo apt-get -y install libqt5gui5 ffmpeg apulse
+ - sudo apt-get -y install libqt5gui5 ffmpeg apulse libpulse-mainloop-glib0 pulseaudio
 install:
  - make
  - make install
