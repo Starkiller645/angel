@@ -291,7 +291,7 @@ class MainWindow(QMainWindow):
         submissionImage = None
         self.resize(1080, 640)
         label = QLabel()
-        self.setWindowTitle('Angel v0.7-beta.4')
+        self.setWindowTitle('Angel v0.8')
         self.mainWidget = QWidget()
 
         # Setup
@@ -861,7 +861,6 @@ class MainWindow(QMainWindow):
         if self.submissionVideo is not None:
             self.submissionVideo.show()
             self.mainBody.addWidget(self.submissionVideo)
-            self.mainBody.addWidget(QLabel('TEST'))
         self.mainBody.addWidget(self.submissionBody)
         self.mainBodyWidget.setLayout(self.mainBody)
         self.scroll.setWidget(self.mainBodyWidget)

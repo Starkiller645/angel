@@ -3,7 +3,7 @@ from setuptools import setup
 __author__ = 'Jacob Tye'
 setup(
  name='angel',
- version='0.5-beta',
+ version='0.8-beta',
  description='Angel for Linux - A Reddit Client',
  author='Jacob Tye',
  author_email='jacob.tye@outlook.com',
