@@ -12,7 +12,7 @@ before_install:
  - pip install -U pip
  - pip install -U pytest
  - pip install codecov
- - pip install praw pyqt5 requests pillow PyQtWebEngine wget
+ - pip install praw pyqt5 requests pillow PyQtWebEngine wget ffmpeg-python
  - sudo apt-get -y install libqt5gui5
 install:
  - make
