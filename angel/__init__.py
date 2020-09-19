@@ -696,6 +696,8 @@ class MainWindow(QMainWindow):
             rawUrl = parsedJson[0]["data"]["children"][0]["data"]["secure_media"]["reddit_video"]["fallback_url"]
             audioUrl = rawUrl[:rawUrl.rfind('/')] + '/audio'
             print(audioUrl)
+
+            # Write the content of the file found at the fallback_url from JSON
             if isWindows:
                 with open('{}/Angel/temp/.vid.mp4'.format(appData), 'wb') as video:
                     data = requests.get(rawUrl)
@@ -705,20 +707,13 @@ class MainWindow(QMainWindow):
                     data = requests.get(rawUrl)
                     video.write(data.content)
 
+
             if isWindows:
-                try:
-                    with open('{}/Angel/temp/.aud.mp4'.format(appData), 'wb') as audio:
-                        data = requests.get(audioUrl)
-                        audio.write(data.content)
-                except:
-                    pass
-                else:
-                    audio = open('/opt/angel-reddit/temp/.aud.mp4', 'rt')
-                    if '?xml' not in audio.read():
-                        video = ffmpeg.input('{}/Angel/temp/.vid.mp4'.format(appData))
-                        audio = ffmpeg.input('{}/Angel/temp/.aud.mp4'.format(appData))
-                        output = ffmpeg.output(video, audio, '{}/Angel/temp/combined.mp4'.format(appData), vcodec='copy', acodec='aac', strict='experimental')
-                        videoPath = '{}/Angel/temp/combined.mp4'.format(appData)
+                # FFmpeg is not easily available on windows, so for now there is no support for sound on this platform
+                # In a later release we will add a different audio/video backend that supports windows and is installed
+                # from PyPi
+                videoPath = '{}/Angel/temp/.vid.mp4'.format(appData)
+
 
             else:
                 try:
@@ -737,42 +732,81 @@ class MainWindow(QMainWindow):
                             pass
                         else:
                             audio.close()
-                            video = ffmpeg.input('/opt/angel-reddit/temp/.vid.mp4')
-                            audio = ffmpeg.input('/opt/angel-reddit/temp/.aud.mp4')
-                            output = ffmpeg.output(video, audio, '/opt/angel-reddit/temp/combined.mp4', vcodec='copy', acodec='aac', strict='experimental')
+                            if isWindows:
+                                video = ffmpeg.input('{}/Angel/temp/.vid.mp4'.format(appData))
+                                audio = ffmpeg.input('{}/Angel/temp/.aud.mp4'.format(appData))
+                                output = ffmpeg.output(video, audio, '{}/Angel/temp/combined.mp4', vcodec='copy', acodec='aac', strict='experimental')
+                            else:
+                                video = ffmpeg.input('/opt/angel-reddit/temp/.vid.mp4')
+                                audio = ffmpeg.input('/opt/angel-reddit/temp/.aud.mp4')
+                                output = ffmpeg.output(video, audio, '/opt/angel-reddit/temp/combined.mp4'.format(appData), vcodec='copy', acodec='aac', strict='experimental')
                             output.run(overwrite_output=True)
-                            videoPath = '/opt/angel-reddit/temp/combined.mp4'
+                            if isWindows:
+                                videoPath = '{}/Angel/temp/combined.mp4'.format(appData)
+                            else:
+                                videoPath = '/opt/angel-reddit/temp/combined.mp4'
                     except OSError:
-                        os.remove('/opt/angel-reddit/temp/.aud.mp4')
+                        if isWindows:
+                            os.remove('{}/Angel/temp/.aud.mp4'.format(appData))
+                        else:
+                            os.remove('/opt/angel-reddit/temp/.aud.mp4')
                         audioUrl = rawUrl[:rawUrl.rfind('/')] + '/DASH_audio.mp4'
                         if debug:
                             print('[DBG] Trying with new URL scheme\n{}'.format(audioUrl))
-                        with open('/opt/angel-reddit/temp/.aud.mp4', 'wb') as audio:
-                            data = requests.get(audioUrl, headers = {"User-agent" : "Angel for Reddit (by /u/Starkiller645)"})
-                            audio.write(data.content)
-                            audio.close()
-                            audio = open('/opt/angel-reddit/temp/.aud.mp4', 'rt')
-                            try:
-                                print(audio.read())
-                            except UnicodeDecodeError:
-                                requestFailed = False
-                            else:
-                                requestFailed = True
-                            if requestFailed:
-                                if debug:
-                                    print('[DBG] Error downloading audio for video')
-                                videoPath = '/opt/angel-reddit/temp/.vid.mp4'
+                        if isWindows:
+                            with open('{}/Angel/temp/.aud.mp4'.format(appData), 'wb') as audio:
+                                data = requests.get(audioUrl, headers = {"User-agent" : "Angel for Reddit (by /u/Starkiller645)"})
+                                audio.write(data.content)
                                 audio.close()
-                            else:
+                                audio = open('{}/Angel/temp/.aud.mp4'.format(appData), 'rt')
+                                try:
+                                    print(audio.read())
+                                except UnicodeDecodeError:
+                                    requestFailed = False
+                                else:
+                                    requestFailed = True
+                                if requestFailed:
+                                    if debug:
+                                        print('[DBG] Error downloading audio for video')
+                                    videoPath = '{}/Angel/temp/.vid.mp4'.format(appData)
+                                    audio.close()
+                                else:
+                                    audio.close()
+                                    video = ffmpeg.input('{}/Angel/temp/.vid.mp4'.format(appData))
+                                    audio = ffmpeg.input('{}/Angel/temp/.aud.mp4'.format(appData))
+                                    output = ffmpeg.output(video, audio, '{}/Angel/temp/combined.mp4'.format(appData), vcodec='copy', acodec='aac', strict='experimental')
+                                    output.run(overwrite_output=True)
+                                    videoPath = '{}/Angel/temp/combined.mp4'.format(appData)
+                        else:
+                            with open('/opt/angel-reddit/temp/.aud.mp4', 'wb') as audio:
+                                data = requests.get(audioUrl, headers = {"User-agent" : "Angel for Reddit (by /u/Starkiller645)"})
+                                audio.write(data.content)
                                 audio.close()
-                                video = ffmpeg.input('/opt/angel-reddit/temp/.vid.mp4')
-                                audio = ffmpeg.input('/opt/angel-reddit/temp/.aud.mp4')
-                                output = ffmpeg.output(video, audio, '/opt/angel-reddit/temp/combined.mp4', vcodec='copy', acodec='aac', strict='experimental')
-                                output.run(overwrite_output=True)
-                                videoPath = '/opt/angel-reddit/temp/combined.mp4'
+                                audio = open('/opt/angel-reddit/temp/.aud.mp4', 'rt')
+                                try:
+                                    print(audio.read())
+                                except UnicodeDecodeError:
+                                    requestFailed = False
+                                else:
+                                    requestFailed = True
+                                if requestFailed:
+                                    if debug:
+                                        print('[DBG] Error downloading audio for video')
+                                    videoPath = '/opt/angel-reddit/temp/.vid.mp4'
+                                    audio.close()
+                                else:
+                                    audio.close()
+                                    video = ffmpeg.input('/opt/angel-reddit/temp/.vid.mp4')
+                                    audio = ffmpeg.input('/opt/angel-reddit/temp/.aud.mp4')
+                                    output = ffmpeg.output(video, audio, '/opt/angel-reddit/temp/combined.mp4', vcodec='copy', acodec='aac', strict='experimental')
+                                    output.run(overwrite_output=True)
+                                    videoPath = '/opt/angel-reddit/temp/combined.mp4'
                     else:
                         audio.close()
-                        videoPath = '/opt/angel-reddit/temp/.vid.mp4'
+                        if isWindows:
+                            videoPath = '{}/Angel/temp/.vid.mp4'.format(appData)
+                        else:
+                            videoPath = '/opt/angel-reddit/temp/.vid.mp4'
 
             self.submissionVideoObject.setMedia(QMediaContent(QUrl.fromLocalFile(videoPath)))
             submissionImage = None
