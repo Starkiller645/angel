@@ -42,5 +42,5 @@ To run Angel with the included continuous integration tests:
 These should be the same for all distros, but open an issue if there is a difference.
 Only use one installation method if possible.
 
-* PyPi packages: `praw pillow pyqt5 requests setuptools pytest`
-* Distro packages: `python3 python3-praw python3-pillow python3-pyqt5 python3-requests python3-setuptools python3-pytest`
+* PyPi packages: `ffmpeg-python`
+* Distro packages: `python3 python3-praw python3-pillow python3-pyqt5 python3-requests python3-setuptools python3-pytest python3-wget ffmpeg`
