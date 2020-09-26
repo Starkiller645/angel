@@ -1,5 +1,5 @@
 # Angel
-![Build Status](https://travis-ci.com/Starkiller645/angel.svg?branch=master)
+![Build Status](https://travis-ci.com/Starkiller645/angel.svg?branch=dev)
 
 Angel - a Reddit client for the Linux desktop, built using PyQt5
 
