@@ -3,7 +3,7 @@ make:
 install:
 	python3 setup.py install
 	@echo -e '\033[1mWelcome to Angel\033[0m\nA Reddit client for Linux'
-	@sudo bash -c 'mkdir /opt/angel-reddit; mkdir /opt/angel-reddit/temp; cp angel/assets/* /opt/angel-reddit/'
+	@sudo bash -c 'mkdir /opt/angel-reddit; mkdir /opt/angel-reddit/temp; cp -r angel/assets/* /opt/angel-reddit/'
 	@sudo bash -c 'chmod 777 /opt/angel-reddit/temp'
 	@sudo bash -c 'cp angel/assets/angel.desktop /usr/share/applications/angel.desktop'
 	@echo -e 'All Done! Enjoy Angel, and please send feedback to: \033[1mhttps://github.com/Starkiller645/angel'

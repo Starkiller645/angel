@@ -130,7 +130,7 @@ class ThreadSignals(QObject):
     passCode = pyqtSignal(str, object)
     videoPath = pyqtSignal(str)
     done = pyqtSignal()
-    addVideoWidget = pyqtSignal()
+    addVideoWidget = pyqtSignal(str)
 
 
 class AuthorisationWorker(QRunnable):
@@ -215,31 +215,74 @@ class VideoWorker(QRunnable):
             # from PyPi
             videoPath = '{}/Angel/temp/.vid.mp4'.format(appData)
         else:
+            try:
+                with open('/opt/angel-reddit/temp/.aud.mp4', 'wb') as audio:
+                    data = requests.get(audioUrl, headers = {"User-agent" : "Angel for Reddit (by /u/Starkiller645)"})
+                    audio.write(data.content)
+            except:
+                with open('/opt/angel-reddit/temp/.aud.mp4', 'wb') as audio:
+                    audioUrl = rawUrl[:rawUrl.rfind('/')] + '/DASH_audio.mp4'
+                    data = requests.get(audioUrl, headers = {"User-agent" : "Angel for Reddit (by /u/Starkiller645)"})
+                    audio.write(data.content)
             audio = open('/opt/angel-reddit/temp/.aud.mp4', 'rt')
-            if '?xml' not in audio.read():
+            try:
+                if '?xml' not in audio.read():
+                    video = ffmpeg.input('{}/Angel/temp/.vid.mp4'.format(appData))
+                    audio = ffmpeg.input('{}/Angel/temp/.aud.mp4'.format(appData))
+                    output = ffmpeg.output(video, audio, '{}/Angel/temp/combined.mp4'.format(appData), vcodec='copy', acodec='aac', strict='experimental')
+                    self.videoPath = '{}/Angel/temp/combined.mp4'.format(appData)
+                    self.signals.videoPath.emit(self.videoPath)
+                    self.signals.done.emit()
+                    self.signals.addVideoWidget.emit(self.videoPath)
+            except:
                 video = ffmpeg.input('{}/Angel/temp/.vid.mp4'.format(appData))
                 audio = ffmpeg.input('{}/Angel/temp/.aud.mp4'.format(appData))
                 output = ffmpeg.output(video, audio, '{}/Angel/temp/combined.mp4'.format(appData), vcodec='copy', acodec='aac', strict='experimental')
                 self.videoPath = '{}/Angel/temp/combined.mp4'.format(appData)
                 self.signals.videoPath.emit(self.videoPath)
                 self.signals.done.emit()
-                self.signals.addVideoWidget.emit()
-
-        else:
+                self.signals.addVideoWidget.emit(self.videoPath)
+            audio = open('/opt/angel-reddit/temp/.aud.mp4', 'rt')
             try:
+                if '?xml' in audio.read():
+                    if debug:
+                        print('[DBG] Error downloading audio for video\n[DBG] Trying again with new URL format')
+                    raise OSError
+                    pass
+                else:
+                    audio.close()
+                    video = ffmpeg.input('/opt/angel-reddit/temp/.vid.mp4')
+                    audio = ffmpeg.input('/opt/angel-reddit/temp/.aud.mp4')
+                    output = ffmpeg.output(video, audio, '/opt/angel-reddit/temp/combined.mp4', vcodec='copy', acodec='aac', strict='experimental')
+                    output.run(overwrite_output=True)
+                    self.videoPath = '/opt/angel-reddit/temp/combined.mp4'
+                    self.signals.videoPath.emit(self.videoPath)
+                    self.signals.done.emit()
+                    self.signals.addVideoWidget.emit(self.videoPath)
+            except OSError:
+                os.remove('/opt/angel-reddit/temp/.aud.mp4')
+                audioUrl = rawUrl[:rawUrl.rfind('/')] + '/DASH_audio.mp4'
+                if debug:
+                    print('[DBG] Trying with new URL scheme\n{}'.format(audioUrl))
                 with open('/opt/angel-reddit/temp/.aud.mp4', 'wb') as audio:
                     data = requests.get(audioUrl, headers = {"User-agent" : "Angel for Reddit (by /u/Starkiller645)"})
                     audio.write(data.content)
-            except:
-                pass
-            else:
-                audio = open('/opt/angel-reddit/temp/.aud.mp4', 'rt')
-                try:
-                    if '?xml' in audio.read():
+                    audio.close()
+                    audio = open('/opt/angel-reddit/temp/.aud.mp4', 'rt')
+                    try:
+                        print(audio.read())
+                    except UnicodeDecodeError:
+                        requestFailed = False
+                    else:
+                        requestFailed = True
+                    if requestFailed:
                         if debug:
-                            print('[DBG] Error downloading audio for video\n[DBG] Trying again with new URL format')
-                        raise OSError
-                        pass
+                            print('[DBG] Error downloading audio for video')
+                        self.videoPath = '/opt/angel-reddit/temp/.vid.mp4'
+                        audio.close()
+                        self.signals.videoPath.emit(self.videoPath)
+                        self.signals.done.emit()
+                        self.signals.addVideoWidget.emit(self.videoPath)
                     else:
                         audio.close()
                         video = ffmpeg.input('/opt/angel-reddit/temp/.vid.mp4')
@@ -249,47 +292,13 @@ class VideoWorker(QRunnable):
                         self.videoPath = '/opt/angel-reddit/temp/combined.mp4'
                         self.signals.videoPath.emit(self.videoPath)
                         self.signals.done.emit()
-                        self.signals.addVideoWidget.emit()
-                except OSError:
-                    os.remove('/opt/angel-reddit/temp/.aud.mp4')
-                    audioUrl = rawUrl[:rawUrl.rfind('/')] + '/DASH_audio.mp4'
-                    if debug:
-                        print('[DBG] Trying with new URL scheme\n{}'.format(audioUrl))
-                    with open('/opt/angel-reddit/temp/.aud.mp4', 'wb') as audio:
-                        data = requests.get(audioUrl, headers = {"User-agent" : "Angel for Reddit (by /u/Starkiller645)"})
-                        audio.write(data.content)
-                        audio.close()
-                        audio = open('/opt/angel-reddit/temp/.aud.mp4', 'rt')
-                        try:
-                            print(audio.read())
-                        except UnicodeDecodeError:
-                            requestFailed = False
-                        else:
-                            requestFailed = True
-                        if requestFailed:
-                            if debug:
-                                print('[DBG] Error downloading audio for video')
-                            self.videoPath = '/opt/angel-reddit/temp/.vid.mp4'
-                            audio.close()
-                            self.signals.videoPath.emit(self.videoPath)
-                            self.signals.done.emit()
-                            self.signals.addVideoWidget.emit()
-                        else:
-                            audio.close()
-                            video = ffmpeg.input('/opt/angel-reddit/temp/.vid.mp4')
-                            audio = ffmpeg.input('/opt/angel-reddit/temp/.aud.mp4')
-                            output = ffmpeg.output(video, audio, '/opt/angel-reddit/temp/combined.mp4', vcodec='copy', acodec='aac', strict='experimental')
-                            output.run(overwrite_output=True)
-                            self.videoPath = '/opt/angel-reddit/temp/combined.mp4'
-                            self.signals.videoPath.emit(self.videoPath)
-                            self.signals.done.emit()
-                            self.signals.addVideoWidget.emit()
-                else:
-                    audio.close()
-                    self.videoPath = '/opt/angel-reddit/temp/.vid.mp4'
-                    self.signals.self.videoPath.emit(self.videoPath)
-                    self.signals.done.emit()
-                    self.signals.addVideoWidget.emit()
+                        self.signals.addVideoWidget.emit(self.videoPath)
+            else:
+                audio.close()
+                self.videoPath = '/opt/angel-reddit/temp/.vid.mp4'
+                self.signals.self.videoPath.emit(self.videoPath)
+                self.signals.done.emit()
+                self.signals.addVideoWidget.emit(self.videoPath)
 
 class WebPageView(QWebEngineView):
     def __init__(self, url):
@@ -735,16 +744,16 @@ class MainWindow(QMainWindow):
             self.scre.setText(str(int(self.submissionScoreList[self.widgetNum]) - 1))
             self.hasDownVoted = True
 
-    def playVideo(self):
+    def playVideo(self, videoPath):
         self.submissionVideo = QVideoWidget()
-        self.mediaPath = "/opt/angel-reddit/temp/combined.mp4"
+        self.mediaPath = videoPath
         self.media = QMediaPlayer()
-        self.media.setMedia(QMediaContent(QUrl.fromLocalFile('/opt/angel-reddit/temp/combined.mp4')))
+        self.media.setMedia(QMediaContent(QUrl.fromLocalFile(videoPath)))
         self.media.setVideoOutput(self.submissionVideo)
         self.mainBody.setSizeConstraint(QLayout.SetNoConstraint)
-        self.mainBodyWidget.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Expanding)
-        self.mainBodyWidget.setMinimumHeight(500)
-        self.submissionVideo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.mainBodyWidget.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
+        self.mainBodyWidget.setMinimumHeight(650)
+        self.submissionVideo.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
         self.submissionVideo.setMinimumHeight(120)
         self.submissionVideo.setMinimumWidth(200)
         self.mainBody.addWidget(self.submissionVideo)
