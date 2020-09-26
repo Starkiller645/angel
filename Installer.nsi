@@ -45,6 +45,8 @@ Page instfiles
     File python3.dll
     File python38.dll
     File vcruntime140.dll
+    File video-yt.png
+    File video-mp4.png
     File api-ms-win-crt-heap-l1-1-0.dll
     File api-ms-win-crt-locale-l1-1-0.dll
     File api-ms-win-crt-runtime-l1-1-0.dll

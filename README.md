@@ -12,7 +12,9 @@ Angel - a Reddit client for the Linux desktop, built using PyQt5
 # Features
 
 * Currently has ability to view all subreddits
-* Can sign in and authenticate to Reddit, view subscribed subreddits and up/downvote posts
+* Can sign in and authenticate to Reddit, view subscribed subreddits and up/downvoting of posts
+* Can view v.redd.it and YouTube videos, with sound
+* Can view i.redd.it and Imgur images
 
 # To Do
 
