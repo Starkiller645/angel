@@ -12,7 +12,7 @@ before_install:
  - python --version
  - pip install -U pip
  - pip install -U pytest
- - pip install praw pyqt5 requests pillow PyQtWebEngine wget ffmpeg-python
+ - pip install praw pyqt5 requests pillow PyQtWebEngine wget ffmpeg-python python-vlc
  - sudo apt-get -y install libqt5gui5 ffmpeg apulse libpulse-mainloop-glib0 pulseaudio
 install:
  - make
