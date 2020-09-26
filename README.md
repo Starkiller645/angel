@@ -1,5 +1,5 @@
 # Angel
-![Build Status](https://travis-ci.com/Starkiller645/angel.svg?branch=dev)
+![Build Status](https://travis-ci.com/Starkiller645/angel.svg?branch=master)
 
 Angel - a Reddit client for the Linux desktop, built using PyQt5
 
@@ -44,5 +44,5 @@ To run Angel with the included continuous integration tests:
 These should be the same for all distros, but open an issue if there is a difference.
 Only use one installation method if possible.
 
-* PyPi packages: `praw pillow pyqt5 requests setuptools pytest`
+* PyPi packages: `praw pillow pyqt5 requests setuptools pytest ffmpeg-python wget`
 * Distro packages: `python3 python3-praw python3-pillow python3-pyqt5 python3-requests python3-setuptools python3-pytest`
