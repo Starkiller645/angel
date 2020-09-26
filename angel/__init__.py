@@ -212,7 +212,10 @@ class VideoWorker(QRunnable):
             # FFmpeg is not easily available on windows, so for now there is no support for sound on this platform
             # In a later release we will add a different audio/video backend that supports windows and is installed
             # from PyPi
-            videoPath = '{}/Angel/temp/.vid.mp4'.format(appData)
+            self.videoPath = '{}/Angel/temp/.vid.mp4'.format(appData)
+            self.signals.videoPath.emit(self.videoPath)
+            self.signals.done.emit()
+            self.signals.addVideoWidget.emit(self.videoPath)
         else:
             try:
                 with open('/opt/angel-reddit/temp/.aud.mp4', 'wb') as audio:
