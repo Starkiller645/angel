@@ -210,22 +210,20 @@ class VideoWorker(QRunnable):
                 video.write(data.content)
 
         if isWindows:
-            try:
-                with open('{}/Angel/temp/.aud.mp4'.format(appData), 'wb') as audio:
-                    data = requests.get(audioUrl)
-                    audio.write(data.content)
-            except:
-                pass
-            else:
-                audio = open('/opt/angel-reddit/temp/.aud.mp4', 'rt')
-                if '?xml' not in audio.read():
-                    video = ffmpeg.input('{}/Angel/temp/.vid.mp4'.format(appData))
-                    audio = ffmpeg.input('{}/Angel/temp/.aud.mp4'.format(appData))
-                    output = ffmpeg.output(video, audio, '{}/Angel/temp/combined.mp4'.format(appData), vcodec='copy', acodec='aac', strict='experimental')
-                    self.videoPath = '{}/Angel/temp/combined.mp4'.format(appData)
-                    self.signals.videoPath.emit(self.videoPath)
-                    self.signals.done.emit()
-                    self.signals.addVideoWidget.emit()
+            # FFmpeg is not easily available on windows, so for now there is no support for sound on this platform
+            # In a later release we will add a different audio/video backend that supports windows and is installed
+            # from PyPi
+            videoPath = '{}/Angel/temp/.vid.mp4'.format(appData)
+        else:
+            audio = open('/opt/angel-reddit/temp/.aud.mp4', 'rt')
+            if '?xml' not in audio.read():
+                video = ffmpeg.input('{}/Angel/temp/.vid.mp4'.format(appData))
+                audio = ffmpeg.input('{}/Angel/temp/.aud.mp4'.format(appData))
+                output = ffmpeg.output(video, audio, '{}/Angel/temp/combined.mp4'.format(appData), vcodec='copy', acodec='aac', strict='experimental')
+                self.videoPath = '{}/Angel/temp/combined.mp4'.format(appData)
+                self.signals.videoPath.emit(self.videoPath)
+                self.signals.done.emit()
+                self.signals.addVideoWidget.emit()
 
         else:
             try:
