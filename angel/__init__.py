@@ -14,14 +14,17 @@ from PIL import Image, ImageOps
 import requests
 import io
 import ffmpeg
+
 from wget import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWebEngine import *
 from PyQt5.QtWebEngineWidgets import *
+
 from PyQt5.QtMultimedia import *
 from PyQt5.QtMultimediaWidgets import *
+
 from test import *
 try:
     import pkg_resources.py2_warn
@@ -119,8 +122,6 @@ if isWindows:
     app.setWindowIcon(QIcon('{}/Angel/angel.ico'.format(appData)))
 else:
     app.setWindowIcon(QIcon('/opt/angel-reddit/angel.ico'))
-
-
 
 class ThreadSignals(QObject):
     finished = pyqtSignal()
@@ -763,9 +764,6 @@ class MainWindow(QMainWindow):
         self.mainBody.addWidget(self.submissionVideo)
         self.mainBody.update()
 
-
-
-
     def view(self, id=False):
         self.hasDownVoted = False
         self.hasUpVoted = False
@@ -1056,6 +1054,7 @@ class MainWindow(QMainWindow):
                 self.subWidgetList[self.i].setIcon(self.videoIcon)
             elif 'youtube.com' in self.submissionImageUrl[self.i] or 'youtu.be' in self.submissionImageUrl[self.i]:
                 self.subWidgetList[self.i].setIcon(self.ytIcon)
+
             else:
                 self.subWidgetList[self.i].setIcon(self.linkIcon)
             if debug:

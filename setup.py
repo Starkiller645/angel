@@ -8,7 +8,7 @@ setup(
  author='Jacob Tye',
  author_email='jacob.tye@outlook.com',
  license='GPLv3',
- url='https://github.com/hashbangstudios/angel',
+ url='https://github.com/Starkiller645/angel',
  packages=['angel'],
  package_data={'angel': ['assets/*']},
  entry_points={
