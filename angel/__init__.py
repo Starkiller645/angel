@@ -22,7 +22,6 @@ from PyQt5.QtWebEngine import *
 from PyQt5.QtWebEngineWidgets import *
 from PyQt5.QtMultimedia import *
 from PyQt5.QtMultimediaWidgets import *
-from vlc import *
 from test import *
 try:
     import pkg_resources.py2_warn
