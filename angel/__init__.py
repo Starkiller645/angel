@@ -13,12 +13,18 @@ import json
 from PIL import Image, ImageOps
 import requests
 import io
+import ffmpeg
+
 from wget import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWebEngine import *
 from PyQt5.QtWebEngineWidgets import *
+
+from PyQt5.QtMultimedia import *
+from PyQt5.QtMultimediaWidgets import *
+
 from test import *
 try:
     import pkg_resources.py2_warn
@@ -117,56 +123,185 @@ if isWindows:
 else:
     app.setWindowIcon(QIcon('/opt/angel-reddit/angel.ico'))
 
-class AuthorisationWorker(QObject):
-    done = pyqtSignal(list)
+class ThreadSignals(QObject):
+    finished = pyqtSignal()
+    passReddit = pyqtSignal(object)
+    startLoadAnimation = pyqtSignal()
+    passCode = pyqtSignal(str, object)
+    videoPath = pyqtSignal(str)
+    done = pyqtSignal()
+    addVideoWidget = pyqtSignal(str)
 
-    def __init__(self, parent=None):
-        super().__init__(parent)
 
-    def initReddit(self):
-        if debug:
-            print(window.loadingWidget)
-        window.loadingWidget.show()
-        window.loadingGif.start()
+class AuthorisationWorker(QRunnable):
+
+    def __init__(self):
+        super(AuthorisationWorker, self).__init__()
+        self.signals = ThreadSignals()
+
+    @pyqtSlot()
+    def run(self):
+        self.signals.startLoadAnimation.emit()
 
         # Threading debug code
         if debug:
             print('\n[THREAD] Started authorisation worker')
 
         # Instantiate Reddit class with basic values
-        MainWindow.reddit = praw.Reddit(redirect_uri="http://localhost:8080", client_id="Jq0BiuUeIrsr3A", client_secret=None, user_agent="Angel for Reddit v0.5 (by /u/Starkiller645)")
-        print('[DBG] Instantiated Reddit clasws')
-        window.authThread.quit()
-        print('[DBG Quit authThread]')
-
-    def receiveRedditConnection(self):
+        self.reddit = praw.Reddit(redirect_uri="http://localhost:8080", client_id="Jq0BiuUeIrsr3A", client_secret=None, user_agent="Angel for Reddit v0.5 (by /u/Starkiller645)")
+        print('[DBG] Instantiated Reddit class')
+        self.signals.passReddit.emit(self.reddit)
+        print('[DBG] Quit authThread')
         # Receive data connection on localhost:8080
         print('[DBG] Receiving Reddit data')
-        MainWindow.client = receiveConnection()
-        data = MainWindow.client.recv(1024).decode("utf-8")
+        self.client = receiveConnection()
+        data = self.client.recv(1024).decode("utf-8")
         param_tokens = data.split(" ", 2)[1].split("?", 1)[1].split("&")
         params = {
         key: value for (key, value) in [token.split("=") for token in param_tokens]
         }
         # Authorise to Reddit and initRedditassign to variable
         print('[DBG] Setup data done!')
-        MainWindow.code = MainWindow.reddit.auth.authorize(params["code"])
         if debug:
-            print(MainWindow.code)
+            print('[DBG] AuthCode = ' + params["code"])
 
-        # Add refresh token to praw.ini
-        if isWindows:
-            with open("{}/praw.ini".format(appData), "a") as prawini:
-                prawini.write('\nrefresh_token={}'.format(MainWindow.code))
-        else:
-            with open("{}/.config/praw.ini".format(envHome), "a") as prawini:
-                prawini.write('\nrefresh_token={}'.format(MainWindow.code))
-
-        # Initilise UI and assign value to redditUname
-        MainWindow.redditUname = MainWindow.reddit.user.me()
+        self.signals.passCode.emit(params["code"], self.reddit)
         if debug:
             print('[THREAD] Done!\n')
-        window.receiveThread.quit()
+
+class VideoWorker(QRunnable):
+    def __init__(self, jsonUrl):
+        super(VideoWorker, self).__init__()
+        self.signals = ThreadSignals()
+        self.jsonUrl = jsonUrl
+
+    @pyqtSlot()
+    def run(self):
+        if isWindows:
+            jsonFile = open('{}/Angel/temp/vid_json.json'.format(appData), 'wb')
+        else:
+            jsonFile = open('/opt/angel-reddit/temp/vid_json.json', 'wb')
+        initRequest = requests.get(self.jsonUrl)
+        request = initRequest.url
+        request = request[:len(request) - 1]
+        request += '.json'
+        print(request)
+        finalRequest = requests.get(request, headers = {"User-agent" : "Angel for Reddit (by /u/Starkiller645)"})
+        jsonFile.write(finalRequest.content)
+        jsonFile.close()
+        if isWindows:
+            jsonFile = open('{}/Angel/temp/vid_json.json'.format(appData), 'r')
+        else:
+            jsonFile = open('/opt/angel-reddit/temp/vid_json.json', 'r')
+        parsedJson = json.loads(jsonFile.read())
+        print(jsonFile.read())
+        print(parsedJson)
+        print(parsedJson[0]["data"]["children"][0]["data"]["secure_media"]["reddit_video"]["fallback_url"])
+        rawUrl = parsedJson[0]["data"]["children"][0]["data"]["secure_media"]["reddit_video"]["fallback_url"]
+        audioUrl = rawUrl[:rawUrl.rfind('/')] + '/audio'
+        print(audioUrl)
+        if isWindows:
+            with open('{}/Angel/temp/.vid.mp4'.format(appData), 'wb') as video:
+                data = requests.get(rawUrl)
+                video.write(data.content)
+        else:
+            with open('/opt/angel-reddit/temp/.vid.mp4', 'wb') as video:
+                data = requests.get(rawUrl)
+                video.write(data.content)
+
+        if isWindows:
+            # FFmpeg is not easily available on windows, so for now there is no support for sound on this platform
+            # In a later release we will add a different audio/video backend that supports windows and is installed
+            # from PyPi
+            self.videoPath = '{}/Angel/temp/.vid.mp4'.format(appData)
+            self.signals.videoPath.emit(self.videoPath)
+            self.signals.done.emit()
+            self.signals.addVideoWidget.emit(self.videoPath)
+        else:
+            try:
+                with open('/opt/angel-reddit/temp/.aud.mp4', 'wb') as audio:
+                    data = requests.get(audioUrl, headers = {"User-agent" : "Angel for Reddit (by /u/Starkiller645)"})
+                    audio.write(data.content)
+            except:
+                with open('/opt/angel-reddit/temp/.aud.mp4', 'wb') as audio:
+                    audioUrl = rawUrl[:rawUrl.rfind('/')] + '/DASH_audio.mp4'
+                    data = requests.get(audioUrl, headers = {"User-agent" : "Angel for Reddit (by /u/Starkiller645)"})
+                    audio.write(data.content)
+            audio = open('/opt/angel-reddit/temp/.aud.mp4', 'rt')
+            try:
+                if '?xml' not in audio.read():
+                    video = ffmpeg.input('{}/Angel/temp/.vid.mp4'.format(appData))
+                    audio = ffmpeg.input('{}/Angel/temp/.aud.mp4'.format(appData))
+                    output = ffmpeg.output(video, audio, '{}/Angel/temp/combined.mp4'.format(appData), vcodec='copy', acodec='aac', strict='experimental')
+                    self.videoPath = '{}/Angel/temp/combined.mp4'.format(appData)
+                    self.signals.videoPath.emit(self.videoPath)
+                    self.signals.done.emit()
+                    self.signals.addVideoWidget.emit(self.videoPath)
+            except:
+                video = ffmpeg.input('{}/Angel/temp/.vid.mp4'.format(appData))
+                audio = ffmpeg.input('{}/Angel/temp/.aud.mp4'.format(appData))
+                output = ffmpeg.output(video, audio, '{}/Angel/temp/combined.mp4'.format(appData), vcodec='copy', acodec='aac', strict='experimental')
+                self.videoPath = '{}/Angel/temp/combined.mp4'.format(appData)
+                self.signals.videoPath.emit(self.videoPath)
+                self.signals.done.emit()
+                self.signals.addVideoWidget.emit(self.videoPath)
+            audio = open('/opt/angel-reddit/temp/.aud.mp4', 'rt')
+            try:
+                if '?xml' in audio.read():
+                    if debug:
+                        print('[DBG] Error downloading audio for video\n[DBG] Trying again with new URL format')
+                    raise OSError
+                    pass
+                else:
+                    audio.close()
+                    video = ffmpeg.input('/opt/angel-reddit/temp/.vid.mp4')
+                    audio = ffmpeg.input('/opt/angel-reddit/temp/.aud.mp4')
+                    output = ffmpeg.output(video, audio, '/opt/angel-reddit/temp/combined.mp4', vcodec='copy', acodec='aac', strict='experimental')
+                    output.run(overwrite_output=True)
+                    self.videoPath = '/opt/angel-reddit/temp/combined.mp4'
+                    self.signals.videoPath.emit(self.videoPath)
+                    self.signals.done.emit()
+                    self.signals.addVideoWidget.emit(self.videoPath)
+            except OSError:
+                os.remove('/opt/angel-reddit/temp/.aud.mp4')
+                audioUrl = rawUrl[:rawUrl.rfind('/')] + '/DASH_audio.mp4'
+                if debug:
+                    print('[DBG] Trying with new URL scheme\n{}'.format(audioUrl))
+                with open('/opt/angel-reddit/temp/.aud.mp4', 'wb') as audio:
+                    data = requests.get(audioUrl, headers = {"User-agent" : "Angel for Reddit (by /u/Starkiller645)"})
+                    audio.write(data.content)
+                    audio.close()
+                    audio = open('/opt/angel-reddit/temp/.aud.mp4', 'rt')
+                    try:
+                        print(audio.read())
+                    except UnicodeDecodeError:
+                        requestFailed = False
+                    else:
+                        requestFailed = True
+                    if requestFailed:
+                        if debug:
+                            print('[DBG] Error downloading audio for video')
+                        self.videoPath = '/opt/angel-reddit/temp/.vid.mp4'
+                        audio.close()
+                        self.signals.videoPath.emit(self.videoPath)
+                        self.signals.done.emit()
+                        self.signals.addVideoWidget.emit(self.videoPath)
+                    else:
+                        audio.close()
+                        video = ffmpeg.input('/opt/angel-reddit/temp/.vid.mp4')
+                        audio = ffmpeg.input('/opt/angel-reddit/temp/.aud.mp4')
+                        output = ffmpeg.output(video, audio, '/opt/angel-reddit/temp/combined.mp4', vcodec='copy', acodec='aac', strict='experimental')
+                        output.run(overwrite_output=True)
+                        self.videoPath = '/opt/angel-reddit/temp/combined.mp4'
+                        self.signals.videoPath.emit(self.videoPath)
+                        self.signals.done.emit()
+                        self.signals.addVideoWidget.emit(self.videoPath)
+            else:
+                audio.close()
+                self.videoPath = '/opt/angel-reddit/temp/.vid.mp4'
+                self.signals.self.videoPath.emit(self.videoPath)
+                self.signals.done.emit()
+                self.signals.addVideoWidget.emit(self.videoPath)
 
 class WebPageView(QWebEngineView):
     def __init__(self, url):
@@ -262,16 +397,41 @@ class MainWindow(QMainWindow):
         print('[DBG] Starting receiveThread')
         self.receiveThread.start()
         print('[DBG] Started receiveThread')
-        self.webpage = WebPageView(self.reddit.auth.url(["identity", "vote", "read", "mysubreddits", "history"], "...", "permanent"))
+        self.webpage = WebPageView(self.worker.reddit.auth.url(["identity", "vote", "read", "mysubreddits", "history"], "...", "permanent"))
 
+    def setVideoPath(self, videoPath):
+        self.videoPath = videoPath
 
+    def startLoadAnimation(self):
+        if debug:
+            print(self.loadingWidget)
+        self.loadingWidget.show()
+        self.loadingGif.start()
+
+    def connectToReddit(self, authCode, Reddit):
+        self.reddit = Reddit
+        self.code = self.reddit.auth.authorize(authCode)
+        self.redditUname = self.reddit.user.me()
+        if debug:
+            print("[DBG] AuthCode = " + self.code)
+        self.webpage = None
+        if isWindows:
+            with open("{}/praw.ini".format(appData), "a") as prawini:
+                prawini.write('\nrefresh_token={}'.format(self.code))
+        else:
+            with open("{}/.config/praw.ini".format(envHome), "a") as prawini:
+                prawini.write('\nrefresh_token={}'.format(self.code))
+        self.initUI()
+
+    def openLoginPage(self, redditInstance):
+        self.webpage = WebPageView(redditInstance.auth.url(["identity", "vote", "read", "mysubreddits", "history"], "...", "permanent"))
 
     def initProgram(self):
         self.loadingWidget = QLabel()
         submissionImage = None
         self.resize(1080, 640)
         label = QLabel()
-        self.setWindowTitle('Angel v0.7-beta.4')
+        self.setWindowTitle('Angel v0.8')
         self.mainWidget = QWidget()
 
         # Setup
@@ -369,13 +529,27 @@ class MainWindow(QMainWindow):
                     loginBox.addWidget(self.loadingWidget)
                     # Qt5 connect syntax is object.valueThatIsConnected.connect(func.toConnectTo)
                     self.enter.clicked.connect(self.initAnonReddit)
-                    self.authThread = QThread(self)
+
+                    # OK, this bit is tricky
+                    # First we instantiate a QThreadPool to manage our threads
+                    self.threadPool = QThreadPool()
+
+                    # Then, we want to create an auth worker that will run as soon as we click the login button
+                    # This should setup the basic Reddit instance, pass it to a lambda, and then listen for a data request
                     self.worker = AuthorisationWorker()
-                    self.worker.moveToThread(self.authThread)
-                    self.worker.done.connect(self.initUI)
-                    self.authThread.started.connect(self.worker.initReddit)
-                    self.authThread.finished.connect(self.runConnect)
-                    self.login.clicked.connect(self.authThread.start)
+
+                    # Next we start the QThreadPool running when the login button is clicked
+                    self.login.clicked.connect(lambda null: self.threadPool.start(self.worker))
+
+                    # The worker should now be generating a basic reddit object, and will pass it through a signal to our lambda
+                    self.worker.signals.passReddit.connect(self.openLoginPage)
+
+                    # Once that is done, the worker should be listening on the correct port for the data from Reddit
+                    # When it has received that, it will pass the auth code to a function that closes the webpage and connects to reddit
+                    self.worker.signals.passCode.connect(self.connectToReddit)
+
+                    # Hopefully, the connectToReddit function will have called initUI properly
+
                     # Set selected widget to be central, taking up the whole
                     # window by default
                     self.mainWidget.setLayout(loginBox)
@@ -423,13 +597,28 @@ class MainWindow(QMainWindow):
                     loginBox.addWidget(self.loadingWidget)
                     # Qt5 connect syntax is object.valueThatIsConnected.connect(func.toConnectTo)
                     self.enter.clicked.connect(self.initAnonReddit)
-                    self.authThread = QThread(self)
+
+                    # OK, this bit is tricky
+                    # First we instantiate a QThreadPool to manage our threads
+                    self.threadPool = QThreadPool()
+
+                    # Then, we want to create an auth worker that will run as soon as we click the login button
+                    # This should setup the basic Reddit instance, pass it to a lambda, and then listen for a data request
                     self.worker = AuthorisationWorker()
-                    self.worker.moveToThread(self.authThread)
-                    self.worker.done.connect(self.initUI)
-                    self.authThread.started.connect(self.worker.initReddit)
-                    self.authThread.finished.connect(self.runConnect)
-                    self.login.clicked.connect(self.authThread.start)
+                    self.worker.__init__()
+
+                    # Next we start the QThreadPool running when the login button is clicked
+                    self.login.clicked.connect(lambda null: self.threadPool.start(self.worker))
+
+                    # The worker should now be generating a basic reddit object, and will pass it through a signal to our lambda
+                    self.worker.signals.passReddit.connect(self.openLoginPage)
+
+                    # Once that is done, the worker should be listening on the correct port for the data from Reddit
+                    # When it has received that, it will pass the auth code to a function that closes the webpage and connects to reddit
+                    self.worker.signals.passCode.connect(self.connectToReddit)
+
+                    # Hopefully, the connectToReddit function will have called initUI properly
+
                     # Set selected widget to be central, taking up the whole
                     # window by default
                     self.mainWidget.setLayout(loginBox)
@@ -558,6 +747,22 @@ class MainWindow(QMainWindow):
             self.scre.setText(str(int(self.submissionScoreList[self.widgetNum]) - 1))
             self.hasDownVoted = True
 
+    def playVideo(self, videoPath):
+        self.submissionVideo = QVideoWidget()
+        self.mediaPath = videoPath
+        self.media = QMediaPlayer()
+        self.media.setMedia(QMediaContent(QUrl.fromLocalFile(videoPath)))
+        self.media.setVideoOutput(self.submissionVideo)
+        self.mainBody.setSizeConstraint(QLayout.SetNoConstraint)
+        self.mainBodyWidget.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
+        self.mainBodyWidget.setMinimumHeight(650)
+        self.submissionVideo.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
+        self.submissionVideo.setMinimumHeight(120)
+        self.submissionVideo.setMinimumWidth(200)
+        self.mainBody.addWidget(self.submissionVideo)
+        self.media.play()
+        self.mainBody.addWidget(self.submissionVideo)
+        self.mainBody.update()
 
     def view(self, id=False):
         self.hasDownVoted = False
@@ -620,52 +825,57 @@ class MainWindow(QMainWindow):
             submissionImage.setPixmap(img)
             if debug:
                 print('[DBG] Created pixmap for image')
-            submissionVideo = None
+            self.submissionVideo = None
         elif 'v.redd.it' in self.submissionImageUrl[self.widgetNum]:
-            submissionVideo = QWebEngineView()
+            self.frame = QLabel()
             jsonUrl = self.submissionImageUrl[self.widgetNum]
-            if isWindows:
-                jsonFile = open('{}/Angel/temp/vid_json.json'.format(appData), 'wb')
-            else:
-                jsonFile = open('/opt/angel-reddit/temp/vid_json.json', 'wb')
-            initRequest = requests.get(jsonUrl)
-            request = initRequest.url
-            request = request[:len(request) - 1]
-            request += '.json'
-            print(request)
-            finalRequest = requests.get(request, headers = {"User-agent" : "Angel for Reddit (by /u/Starkiller645)"})
-            jsonFile.write(finalRequest.content)
-            jsonFile.close()
-            if isWindows:
-                jsonFile = open('{}/Angel/temp/vid_json.json'.format(appData), 'r')
-            else:
-                jsonFile = open('/opt/angel-reddit/temp/vid_json.json', 'r')
-            parsedJson = json.loads(jsonFile.read())
-            print(jsonFile.read())
-            print(parsedJson)
-            print(parsedJson[0]["data"]["children"][0]["data"]["secure_media"]["reddit_video"]["fallback_url"])
-            rawUrl = parsedJson[0]["data"]["children"][0]["data"]["secure_media"]["reddit_video"]["fallback_url"]
-            audioUrl = rawUrl[:rawUrl.rfind('/')] + '/audio'
-            print(audioUrl)
-            submissionVideo.setUrl(QUrl(rawUrl))
+
+            # More threading here
+            self.threadpool = QThreadPool()
+
+            # Create a QRunnable
+            self.worker = VideoWorker(jsonUrl)
+
+            # Start the thread running
+            self.threadpool.start(self.worker)
+
+            # Make a new local event loop to run while the video is processing, and start it
+            self.localEventLoop = QEventLoop()
+            if debug:
+                print('[DBG] Starting new local event loop')
+            #self.localEventLoop.exec()
+
+            # Wait asynchronously for the video worker to stop.
+            # When it is done, stop the local event loop
+            self.worker.signals.done.connect(self.localEventLoop.quit)
+            self.worker.signals.addVideoWidget.connect(self.playVideo)
+
+            # Set the video path from a signal
+            self.worker.signals.videoPath.connect(self.setVideoPath)
             submissionImage = None
-            submissionVideo.setMaximumWidth(700)
+
         elif 'youtube.com' in self.submissionImageUrl[self.widgetNum]:
-            submissionVideo = QWebEngineView()
+            self.submissionVideo = None
+            self.submissionVideo = QWebEngineView()
+            self.submissionVideo.page().settings().setAttribute(QWebEngineSettings.ShowScrollBars, False)
             ytEmbedUrl = self.submissionImageUrl[self.widgetNum].split("?v=")[1]
             print(ytEmbedUrl)
-            submissionVideo.setHtml("<!DOCTYPE html><html><head><style type=\"text/css\">body {{margin: 0}}</style></head><body><iframe id=\"ytplayer\" type=\"text/html\" width=\"636\" height=\"480\" src=\"https://youtube.com/embed/{}\"></body></html>".format(ytEmbedUrl))
-            submissionVideo.setMaximumWidth(700)
+            ytEmbedUrl = ytEmbedUrl.split('&')[0]
+            print(ytEmbedUrl)
+            self.submissionVideo.setHtml("<!DOCTYPE html><html><head><style type=\"text/css\">body {{margin: 0}}</style></head><body><iframe id=\"ytplayer\" type=\"text/html\" width=\"636\" height=\"480\" src=\"https://youtube.com/embed/{}\"></body></html>".format(ytEmbedUrl))
+            self.submissionVideo.setFixedWidth(648)
+            self.submissionVideo.setFixedHeight(488)
+            print('[DBG] Showing YT Video')
             submissionImage = None
         elif 'reddit.com' not in self.submissionImageUrl[self.widgetNum]:
             submissionImage = QLabel('<a href="{0}" >{0}</a>'.format(self.submissionImageUrl[self.widgetNum]))
             submissionImage.setOpenExternalLinks(True)
             submissionImage.setStyleSheet('font-size: 26px; color: skyblue;')
             submissionImage = None
-            submissionVideo = None
+            self.submissionVideo = None
         else:
             submissionImage = None
-            submissionVideo = None
+            self.submissionVideo = None
             if debug:
                 print('[DBG] Set submissionImage to None')
         self.submissionUrl = QLabel()
@@ -722,8 +932,8 @@ class MainWindow(QMainWindow):
         if submissionImage is not None:
             self.mainBody.addWidget(submissionImage)
             submissionImage.show()
-        if submissionVideo is not None:
-            self.mainBody.addWidget(submissionVideo)
+        if 'youtube.com' in self.submissionImageUrl[self.widgetNum]:
+            self.mainBody.addWidget(self.submissionVideo)
         self.mainBody.addWidget(self.submissionBody)
         self.mainBodyWidget.setLayout(self.mainBody)
         self.scroll.setWidget(self.mainBodyWidget)
@@ -766,13 +976,17 @@ class MainWindow(QMainWindow):
 
         # Set up icons for the various post types
         if isWindows:
-            self.textIcon = QIcon('{}/Angel/text.png')
-            self.linkIcon = QIcon('{}/Angel/link.png')
-            self.imageIcon = QIcon('{}/Angel/imagelink.png')
+            self.textIcon = QIcon('{}/Angel/text.png'.format(appData))
+            self.linkIcon = QIcon('{}/Angel/link.png'.format(appData))
+            self.imageIcon = QIcon('{}/Angel/imagelink.png'.format(appData))
+            self.videoIcon = QIcon('{}/Angel/video-mp4.png'.format(appData))
+            self.ytIcon = QIcon('{}/Angel/video-yt.png'.format(appData))
         else:
             self.textIcon = QIcon('/opt/angel-reddit/text.png')
             self.linkIcon = QIcon('/opt/angel-reddit/link.png')
             self.imageIcon = QIcon('/opt/angel-reddit/imagelink.png')
+            self.videoIcon = QIcon('/opt/angel-reddit/video-mp4.png')
+            self.ytIcon = QIcon('/opt/angel-reddit/video-yt.png')
         if self.centralWidget() != self.window:
             self.setCentralWidget(self.window)
         self.clearLayout(self.subList)
@@ -836,6 +1050,11 @@ class MainWindow(QMainWindow):
                 self.subWidgetList[self.i].setIcon(self.textIcon)
             elif 'i.redd.it' in self.submissionImageUrl[self.i] or 'i.imgur.com' in self.submissionImageUrl[self.i]:
                 self.subWidgetList[self.i].setIcon(self.imageIcon)
+            elif 'v.redd.it' in self.submissionImageUrl[self.i]:
+                self.subWidgetList[self.i].setIcon(self.videoIcon)
+            elif 'youtube.com' in self.submissionImageUrl[self.i] or 'youtu.be' in self.submissionImageUrl[self.i]:
+                self.subWidgetList[self.i].setIcon(self.ytIcon)
+
             else:
                 self.subWidgetList[self.i].setIcon(self.linkIcon)
             if debug:
@@ -988,7 +1207,8 @@ class MainWindow(QMainWindow):
         self.menuEntryArray = ["Logout", "Website"]
         self.createMenu(self.menuEntryArray, self.menu)
         self.menuButton.setMenu(self.menu)
-        self.menu.triggered.connect(self.logOut)
+        self.menu.actions()[0].triggered.connect(self.logOut)
+        self.menu.actions()[1].triggered.connect(lambda null, page="https://github.com/Starkiller645/angel": webbrowser.open(page))
         if debug:
             print('[DBG] Set up right side of toolbar')
 

@@ -12,7 +12,9 @@ Angel - a Reddit client for the Linux desktop, built using PyQt5
 # Features
 
 * Currently has ability to view all subreddits
-* Can sign in and authenticate to Reddit, view subscribed subreddits and up/downvote posts
+* Can sign in and authenticate to Reddit, view subscribed subreddits and up/downvoting of posts
+* Can view v.redd.it and YouTube videos, with sound
+* Can view i.redd.it and Imgur images
 
 # To Do
 
@@ -42,5 +44,5 @@ To run Angel with the included continuous integration tests:
 These should be the same for all distros, but open an issue if there is a difference.
 Only use one installation method if possible.
 
-* PyPi packages: `ffmpeg-python`
-* Distro packages: `python3 python3-praw python3-pillow python3-pyqt5 python3-requests python3-setuptools python3-pytest python3-wget ffmpeg`
+* PyPi packages: `praw pillow pyqt5 requests setuptools pytest ffmpeg-python wget`
+* Distro packages: `python3 python3-praw python3-pillow python3-pyqt5 python3-requests python3-setuptools python3-pytest`
