@@ -655,8 +655,8 @@ class MainWindow(QMainWindow):
             if debug:
                 print(filename)
                 print(input)
-            with open(input, 'wb') as inputFile:
-                file = open(filename, 'rb')
+            with open(input, 'rb') as inputFile:
+                file = open(filename[0], 'wb')
                 fileContents = inputFile.read()
                 file.write(fileContents)
                 file.close()
