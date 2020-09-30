@@ -650,7 +650,7 @@ class MainWindow(QMainWindow):
                 file.write(fileContents)
                 file.close()
         else:
-            filename = QFileDialog.getOpenFileName(self, 'Open file', '{envHome}/Documents', 'Media files (*.jpg *.png *.mp4 *.jpeg *.gif)')
+            filename = QFileDialog.getSaveFileName(self, 'Open file', '{envHome}/Documents', 'Media files (*.jpg *.png *.mp4 *.jpeg *.gif)')
             input = self.mediaPath
             if debug:
                 print(filename)
