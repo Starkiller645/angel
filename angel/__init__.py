@@ -63,6 +63,11 @@ else:
 if debug:
     print(sys.platform)
 
+if isWindows:
+    envHome = os.environ.get('CSIDL_MYDOCUMENTS', '')
+    if debug:
+        print('[DBG] User home is {envHome}')
+
 # Check if running headless for CI workflow
 if os.environ.get("CI", "") == 'true':
     ci = True
@@ -400,7 +405,7 @@ class MainWindow(QMainWindow):
         self.webpage = WebPageView(self.worker.reddit.auth.url(["identity", "vote", "read", "mysubreddits", "history"], "...", "permanent"))
 
     def setVideoPath(self, videoPath):
-        self.videoPath = videoPath
+        self.mediaPath = videoPath
 
     def startLoadAnimation(self):
         if debug:
@@ -632,6 +637,30 @@ class MainWindow(QMainWindow):
 
     # Define a function to open a web socket to receive the access token from OAuth
 
+    def saveFile(self):
+        if isWindows:
+            filename = QFileDialog.getSaveFileName(self, 'Open file', envHome, 'Media files (*.jpg *.png *.mp4 *.jpeg *.gif)')
+            input = self.mediaPath
+            if debug:
+                print(filename)
+                print(input)
+            with open(input, 'rb') as inputFile:
+                file = open(filename[0], 'wb')
+                fileContents = inputFile.read()
+                file.write(fileContents)
+                file.close()
+        else:
+            filename = QFileDialog.getSaveFileName(self, 'Open file', '{envHome}/Documents', 'Media files (*.jpg *.png *.mp4 *.jpeg *.gif)')
+            input = self.mediaPath
+            if debug:
+                print(filename)
+                print(input)
+            with open(input, 'wb') as inputFile:
+                file = open(filename, 'rb')
+                fileContents = inputFile.read()
+                file.write(fileContents)
+                file.close()
+
     def fetchImage(self, url):
         image = requests.get(url)
         imageBytes = io.BytesIO(image.content)
@@ -820,12 +849,14 @@ class MainWindow(QMainWindow):
             print('[DBG] Created submission body widget')
         if 'i.redd.it' in self.submissionImageUrl[self.widgetNum] or 'imgur.com' in self.submissionImageUrl[self.widgetNum]:
             submissionImage = QLabel()
-            preimg = QPixmap(self.fetchImage(self.submissionImageUrl[self.widgetNum]))
+            self.mediaPath = self.fetchImage(self.submissionImageUrl[self.widgetNum])
+            preimg = QPixmap(self.mediaPath)
             img = preimg.scaledToWidth(500)
             submissionImage.setPixmap(img)
             if debug:
                 print('[DBG] Created pixmap for image')
             self.submissionVideo = None
+
         elif 'v.redd.it' in self.submissionImageUrl[self.widgetNum]:
             self.frame = QLabel()
             jsonUrl = self.submissionImageUrl[self.widgetNum]
@@ -888,6 +919,9 @@ class MainWindow(QMainWindow):
             print('[DBG] Created submission URL widget')
         self.submissionScore = QWidget()
 
+        self.saveWidget = QPushButton('Save File')
+        self.saveWidget.clicked.connect(lambda null: self.saveFile())
+
         # Set up Score (Combined up- and downvotes) widget, to be able to view upvotes
         self.upvoteLabel = QToolButton()
         self.downvoteLabel = QToolButton()
@@ -917,6 +951,7 @@ class MainWindow(QMainWindow):
         self.scoreLayout.addWidget(self.upvoteLabel)
         self.scoreLayout.addWidget(self.scre)
         self.scoreLayout.addWidget(self.downvoteLabel)
+        self.scoreLayout.addWidget(self.saveWidget)
         if debug:
             print('[DBG] Added widgets to score layout')
         self.submissionScore.setLayout(self.scoreLayout)
