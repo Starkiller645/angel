@@ -1,7 +1,7 @@
 # Angel
 ![Build Status](https://travis-ci.com/Starkiller645/angel.svg?branch=master)
 
-Angel - a Reddit client for the Linux desktop, built using PyQt5
+Angel - a Reddit client for Linux , built with PyQt5
 
 ![Screenshot of login screen](https://github.com/Starkiller645/angel/raw/master/demo/login-demo.png)
 
