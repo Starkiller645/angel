@@ -389,6 +389,13 @@ class MainWindow(QMainWindow):
         super(MainWindow, self).__init__(*args, **kwargs)
         _test_assets()
         _test_prawini()
+        self.viewWindow = QWidget()
+        self.viewWindowLayout = QVBoxLayout()
+        self.viewWindow.setLayout(self.viewWindowLayout)
+        self.sideBar = QWidget()
+        self.sideBarLayout = QVBoxLayout()
+        self.sideBar.setStyleSheet('background-color: #00ff00;')
+        self.sideBar.setLayout(self.sideBarLayout)
         self.loadingWidget = QLabel()
         self.initProgram()
 
@@ -416,7 +423,14 @@ class MainWindow(QMainWindow):
     def connectToReddit(self, authCode, Reddit):
         self.reddit = Reddit
         self.code = self.reddit.auth.authorize(authCode)
-        self.redditUname = self.reddit.user.me()
+        try:
+            self.redditUname = self.reddit.user.me()
+        except prawcore.exceptions.RequestException:
+            self.errorWidget = QWidget()
+            self.ohno = QLabel('Oh No!')
+            self.ohno.setStyleSheet()
+            self.errorWidget.addWidget()
+
         if debug:
             print("[DBG] AuthCode = " + self.code)
         self.webpage = None
@@ -746,6 +760,7 @@ class MainWindow(QMainWindow):
         self.subIcon.setPixmap(self.subIconPixmap)
         self.subIcon.show()
         self.subHeader.setText(' r/' + sub.display_name)
+        self.subBarHeader.setText(' r/' + sub.display_name)
         return
 
     def giveUpvote(self, post):
@@ -806,7 +821,7 @@ class MainWindow(QMainWindow):
         if debug:
             print("[DBG] Func arg ID is " + str(id))
             print("[DBG] self.widgetNum is " + str(self.widgetNum))
-        self.mainLayout.removeWidget(self.viewWidget)
+        self.viewWindowLayout.removeWidget(self.viewWidget)
         if self.viewWidget is not None:
             self.viewWidget.deleteLater()
         self.viewWidget = None
@@ -818,7 +833,7 @@ class MainWindow(QMainWindow):
             self.scroll = QScrollArea()
             self.scroll.setWidget(self.viewWidget)
             self.scroll.takeWidget()
-            self.mainLayout.addWidget(self.scroll)
+            self.viewWindow.addWidget(self.scroll)
         self.viewWidget = QWidget()
         self.viewLayout = QVBoxLayout()
         self.mainBody = QVBoxLayout()
@@ -977,7 +992,7 @@ class MainWindow(QMainWindow):
         self.viewLayout.addWidget(self.scroll)
         self.viewLayout.addWidget(self.submissionScore)
         self.viewWidget.setLayout(self.viewLayout)
-        self.mainLayout.addWidget(self.viewWidget)
+        self.viewWindowLayout.addWidget(self.viewWidget)
         if debug:
             print('[DBG] Added widgets to mainLayout and viewWidget')
         self.viewWidget.show()
@@ -985,19 +1000,24 @@ class MainWindow(QMainWindow):
             print('[DBG] Showing viewWidget')
 
     def showSubDesc(self):
-        self.mainLayout.removeWidget(self.viewWidget)
+        self.viewWindowLayout.removeWidget(self.viewWidget)
         self.viewWidget.deleteLater()
         self.viewWidget = None
         self.viewWidget = QWidget()
         self.descWidget = QLabel(self.sub.description_html)
+        self.descWidget.setStyleSheet('background-color: #f0f0f0; color: #0f0f0f; margin: 0px 0px;')
         self.descWidget.setTextFormat(Qt.RichText)
         self.descWidget.setOpenExternalLinks(True)
         self.scroll = QScrollArea()
+        self.scroll.setStyleSheet('background-color: #f0f0f0; color: #0f0f0f; margin: 0px 0px;')
         self.viewLayout = QVBoxLayout()
         self.scroll.setWidget(self.descWidget)
+        self.viewWidget.setStyleSheet('background-color: #ff0000; color: #0f0f0f; margin: 0px 0px;')
         self.viewLayout.addWidget(self.scroll)
         self.viewWidget.setLayout(self.viewLayout)
-        self.mainLayout.addWidget(self.viewWidget)
+        self.viewWindowLayout.addWidget(self.viewWidget)
+        self.viewWindowLayout.setAlignment(Qt.AlignLeft)
+        self.mainLayout.addWidget(self.viewWindow)
         self.viewWidget.show()
 
 
@@ -1027,6 +1047,7 @@ class MainWindow(QMainWindow):
         self.clearLayout(self.subList)
         self.subList = QVBoxLayout()
         self.subredditBar = QWidget()
+        self.subredditBar.setStyleSheet('background-color: #0f0f0f')
         if debug:
             print(subreddit)
         if subreddit != None and subreddit != True and subreddit != False:
@@ -1098,6 +1119,7 @@ class MainWindow(QMainWindow):
             self.subWidgetList[self.i].setFixedHeight(100)
             self.subWidgetList[self.i].setFixedWidth(460)
             self.subScroll.setFixedWidth(500)
+            self.sideBar.setMaximumWidth(540)
             self.subScroll.setWidget(self.subredditBar)
             self.subScroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
             self.subScroll.setWidgetResizable(True)
@@ -1207,6 +1229,7 @@ class MainWindow(QMainWindow):
         self.searchSubs.setMinimumWidth(500)
         self.searchButton.setMaximumWidth(40)
         self.toolbar = QToolBar()
+        self.subBar = QToolBar()
         self.hasUpVoted = False
         self.hasDownVoted = False
         if debug:
@@ -1266,8 +1289,15 @@ class MainWindow(QMainWindow):
         self.subHeader = QLabel('r/none')
         self.subHeader.setStyleSheet('font-weight: bold; font-size: 30px;')
         self.status.setAlignment(Qt.AlignCenter)
+        self.subBarHeader = QLabel('r/none')
+        self.subBarHeader.setStyleSheet('font-weight: bold; font-size: 30px;')
+        self.subBar.setFixedWidth(540)
+        self.subBar.addWidget(self.subBarHeader)
+        self.addToolBar(self.subBar)
+        self.toolbar.setStyleSheet('background-color: #f0f0f0')
         self.addToolBar(self.toolbar)
         if debug:
+            print(self.toolbar.objectName())
             print('[DBG] Added toolbar')
 
         # Add widgets to toolbar
@@ -1289,17 +1319,24 @@ class MainWindow(QMainWindow):
 
         # Set main layout
         self.mainLayout = QHBoxLayout()
+        self.mainLayout.setContentsMargins(0, 0, 0, 0)
         self.wowSuchEmpty = QLabel('Wow, such empty!')
         self.wowSuchEmpty.setAlignment(Qt.AlignCenter)
         self.window = QWidget()
+        self.window.setStyleSheet('background-color: #f0f0f0;')
         self.subList = QVBoxLayout()
+        self.subredditBarContainer = QWidget()
+        self.subredditBarContainerLayout = QVBoxLayout()
+        self.subredditBarContainer.setLayout(self.subredditBarContainerLayout)
+        self.subredditBarContainer.setStyleSheet('background-color: #0f0f0f;')
         self.subredditBar = QWidget()
         self.subredditBar.setMaximumWidth(540)
-        self.subredditBar.setMinimumWidth(540)
+        self.subredditBar.setMinimumWidth(120)
         self.subredditBar.setLayout(self.subList)
         self.subScroll = QScrollArea()
         self.subScroll.setWidget(self.subredditBar)
         self.subScroll.widgetResizable = True
+        self.subredditBarContainerLayout.addWidget(self.subScroll)
         if debug:
             print('[DBG] Set main layout')
 
@@ -1309,9 +1346,15 @@ class MainWindow(QMainWindow):
         self.scroll = QScrollArea()
         self.viewWidget = QLabel('Wow, such empty!')
         self.scroll.setWidget(self.subredditBar)
-        self.mainLayout.addWidget(self.subScroll)
+        self.subScroll.setStyleSheet('background-color: #0f0f0f;')
+        self.sideBarLayout = QVBoxLayout()
+        self.sideBarLayout.addWidget(self.subScroll)
+        self.sideBar = QWidget()
+        self.sideBar.setLayout(self.sideBarLayout)
+        self.sideBar.setStyleSheet('background-color: #0f0f0f;')
+        self.mainLayout.addWidget(self.sideBar)
+        self.window.setStyleSheet('background-color: #f0f0f0; padding: 0px 0px;')
         self.window.setLayout(self.mainLayout)
-        self.window.setStyleSheet('@import url("https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&display=swap"); font-family: Lato')
         if debug:
             print('[DBG] Setting central widget as window')
         self.setCentralWidget(self.window)
@@ -1336,6 +1379,8 @@ class MainWindow(QMainWindow):
 # Add window widgets
 mainThread = QCoreApplication.instance().thread()
 window = MainWindow()
+with open('assets/dark-theme.qss', "r") as stylesheet:
+    window.setStyleSheet(stylesheet.read())
 window.show()
 
 # Start event loop
