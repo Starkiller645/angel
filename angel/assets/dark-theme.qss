@@ -13,6 +13,17 @@ QPushButton {
 QPushButton:hover {
   background-color: #595959;
 }
+QToolButton {
+  background-color: #cccccc;
+  border: none;
+  font-size: 15px;
+  font-weight: bold;
+  color: #0f0f0f;
+}
+QToolButton:hover {
+  background-color: #b2b2b2;
+}
+
 QToolBar {
   background-color: #0f0f0f;
 }

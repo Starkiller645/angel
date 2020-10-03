@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 # Import required libraries
 
 import pytest
@@ -766,7 +766,8 @@ class MainWindow(QMainWindow):
     def giveUpvote(self, post):
         if self.hasDownVoted == True:
             post.clear_vote()
-            self.scre.setText(str(self.submissionScoreList[self.widgetNum]))
+            self.scre.setText('<b>{}</b>'.format(str(self.submissionScoreList[self.widgetNum])))
+            self.scre.setStyleSheet('color: #0f0f0f; font-weight: bold')
             self.hasDownVoted = False
             self.hasUpVoted = False
             return 0
@@ -775,12 +776,14 @@ class MainWindow(QMainWindow):
         else:
             post.upvote()
             self.scre.setText(str(int(self.submissionScoreList[self.widgetNum]) + 1))
+            self.scre.setStyleSheet('color: #ff4500; font-weight: bold;')
             self.hasUpVoted = True
 
     def giveDownvote(self, post):
         if self.hasUpVoted == True:
             post.clear_vote()
             self.scre.setText(str(self.submissionScoreList[self.widgetNum]))
+            self.scre.setStyleSheet('color: #0f0f0f; font-weight: bold;')
             self.hasUpVoted = False
             self.hasDownVoted = False
             return 0
@@ -789,6 +792,7 @@ class MainWindow(QMainWindow):
         else:
             post.downvote()
             self.scre.setText(str(int(self.submissionScoreList[self.widgetNum]) - 1))
+            self.scre.setStyleSheet('color: #0079d3; font-weight: bold;')
             self.hasDownVoted = True
 
     def playVideo(self, videoPath):
@@ -900,24 +904,31 @@ class MainWindow(QMainWindow):
             self.worker.signals.videoPath.connect(self.setVideoPath)
             submissionImage = None
 
-        elif 'youtube.com' in self.submissionImageUrl[self.widgetNum]:
+        elif 'youtube.com' or 'youtu.be' in self.submissionImageUrl[self.widgetNum]:
             self.submissionVideo = None
             self.submissionVideo = QWebEngineView()
             self.submissionVideo.page().settings().setAttribute(QWebEngineSettings.ShowScrollBars, False)
-            ytEmbedUrl = self.submissionImageUrl[self.widgetNum].split("?v=")[1]
+            if 'youtu.be' in self.submissionImageUrl[self.widgetNum]:
+                ytEmbedUrl = self.submissionImageUrl[self.widgetNum][self.submissionImageUrl[self.widgetNum].rfind('/'):]
+                ytEmbedUrl = ytEmbedUrl[1:]
+            else:
+                try:
+                    ytEmbedUrl = self.submissionImageUrl[self.widgetNum].split("?v=")[1]
+                except IndexError:
+                    pass
             print(ytEmbedUrl)
             ytEmbedUrl = ytEmbedUrl.split('&')[0]
             print(ytEmbedUrl)
             self.submissionVideo.setHtml("<!DOCTYPE html><html><head><style type=\"text/css\">body {{margin: 0}}</style></head><body><iframe id=\"ytplayer\" type=\"text/html\" width=\"636\" height=\"480\" src=\"https://youtube.com/embed/{}\"></body></html>".format(ytEmbedUrl))
             self.submissionVideo.setFixedWidth(648)
             self.submissionVideo.setFixedHeight(488)
+            self.submissionVideo.show()
             print('[DBG] Showing YT Video')
             submissionImage = None
         elif 'reddit.com' not in self.submissionImageUrl[self.widgetNum]:
             submissionImage = QLabel('<a href="{0}" >{0}</a>'.format(self.submissionImageUrl[self.widgetNum]))
             submissionImage.setOpenExternalLinks(True)
             submissionImage.setStyleSheet('font-size: 26px; color: skyblue;')
-            submissionImage = None
             self.submissionVideo = None
         else:
             submissionImage = None
@@ -960,6 +971,7 @@ class MainWindow(QMainWindow):
         if debug:
             print('[DBG] Created score widget')
         self.scre.setText("<b>{}</b>".format(self.submissionScoreList[self.widgetNum]))
+        self.scre.setStyleSheet('color: #0f0f0f;')
         self.scre.setAlignment(Qt.AlignCenter)
         if debug:
             print('[DBG] Set text of score widget')
@@ -982,8 +994,11 @@ class MainWindow(QMainWindow):
         if submissionImage is not None:
             self.mainBody.addWidget(submissionImage)
             submissionImage.show()
-        if 'youtube.com' in self.submissionImageUrl[self.widgetNum]:
-            self.mainBody.addWidget(self.submissionVideo)
+        try:
+            if self.submissionVideo is not None:
+                self.mainBody.addWidget(self.submissionVideo)
+        except AttributeError:
+            pass
         self.mainBody.addWidget(self.submissionBody)
         self.mainBodyWidget.setLayout(self.mainBody)
         self.scroll.setWidget(self.mainBodyWidget)
@@ -1095,13 +1110,13 @@ class MainWindow(QMainWindow):
                 self.subWidgetList[self.i].setDescription(self.submissionDescList[self.i])
                 if debug:
                     print('Set description of submission')
-            self.subWidgetList[self.i].show()
             self.subWidgetList[self.i].setID(id=self.i)
             self.subWidgetList[self.i].setText(self.submissionTitleList[self.i])
             if debug:
                 print('Set text of submission')
             self.subWidgetList[self.i].clicked.connect(self.view)
             self.subList.addWidget(self.subWidgetList[self.i])
+            self.subWidgetList[self.i].show()
             if 'reddit.com' in self.submissionImageUrl[self.i]:
                 self.subWidgetList[self.i].setIcon(self.textIcon)
             elif 'i.redd.it' in self.submissionImageUrl[self.i] or 'i.imgur.com' in self.submissionImageUrl[self.i]:
@@ -1123,7 +1138,6 @@ class MainWindow(QMainWindow):
             self.subScroll.setWidget(self.subredditBar)
             self.subScroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
             self.subScroll.setWidgetResizable(True)
-            self.subWidgetList[self.i].show()
             time.sleep(0.01)
         try:
             self.status.setText('/u/' + str(self.redditUname))
@@ -1292,6 +1306,7 @@ class MainWindow(QMainWindow):
         self.subBarHeader = QLabel('r/none')
         self.subBarHeader.setStyleSheet('font-weight: bold; font-size: 30px;')
         self.subBar.setFixedWidth(540)
+        self.subBar.addWidget(self.subIcon)
         self.subBar.addWidget(self.subBarHeader)
         self.addToolBar(self.subBar)
         self.toolbar.setStyleSheet('background-color: #f0f0f0')
@@ -1309,7 +1324,6 @@ class MainWindow(QMainWindow):
         except AttributeError:
             pass
         self.toolbar.addWidget(self.spacer1)
-        self.toolbar.addWidget(self.subIcon)
         self.toolbar.addWidget(self.subHeader)
         self.toolbar.addWidget(self.spacer2)
         self.toolbar.addWidget(self.status)
