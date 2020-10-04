@@ -319,12 +319,21 @@ class IDWidget(QCommandLinkButton):
     def __init__(self, id=None, *args, **kwargs):
         super(IDWidget, self).__init__(*args, **kwargs)
         self.id = id
+        self.setAttribute(Qt.WA_Hover, True)
+        self.clicked.connect(self.setBorderOrange)
 
     def setID(self, id):
         self.id = id
 
     def getID(self):
         return self.id
+
+    def setBorderOrange(self, event=None):
+        self.setStyleSheet('border-left: 5px solid #ff4500;')
+
+    def setBorderNone(self, event=None):
+        self.setStyleSheet('border-left: none;')
+
 
 # Create error classes to handle timeout or 404 exceptions, etc.
 class RequestTimeOut(QWidget):
@@ -802,7 +811,7 @@ class MainWindow(QMainWindow):
         self.media.setMedia(QMediaContent(QUrl.fromLocalFile(videoPath)))
         self.media.setVideoOutput(self.submissionVideo)
         self.mainBody.setSizeConstraint(QLayout.SetNoConstraint)
-        self.mainBodyWidget.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
+        self.mainBodyWidget.setMaximumWidth(self.width() - 540)
         self.mainBodyWidget.setMinimumHeight(650)
         self.submissionVideo.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
         self.submissionVideo.setMinimumHeight(120)
@@ -815,13 +824,17 @@ class MainWindow(QMainWindow):
     def view(self, id=False):
         self.hasDownVoted = False
         self.hasUpVoted = False
-        if debug:
-            print('[DBG] Started view function')
-            print(self.sender())
         if id != False:
             self.widgetNum = id
         else:
             self.widgetNum = self.sender().getID()
+        self.subBar.setFixedWidth(self.sideBar.width())
+        for i in self.subWidgetList:
+            i.setBorderNone()
+        self.subWidgetList[self.widgetNum].setBorderOrange()
+        if debug:
+            print('[DBG] Started view function')
+            print(self.sender())
         if debug:
             print("[DBG] Func arg ID is " + str(id))
             print("[DBG] self.widgetNum is " + str(self.widgetNum))
@@ -840,6 +853,7 @@ class MainWindow(QMainWindow):
             self.viewWindow.addWidget(self.scroll)
         self.viewWidget = QWidget()
         self.viewLayout = QVBoxLayout()
+        self.viewWidget.setMaximumWidth(self.width() - 540)
         self.mainBody = QVBoxLayout()
         self.mainBodyWidget = QWidget()
         self.urlLayout = QHBoxLayout()
@@ -904,7 +918,7 @@ class MainWindow(QMainWindow):
             self.worker.signals.videoPath.connect(self.setVideoPath)
             submissionImage = None
 
-        elif 'youtube.com' or 'youtu.be' in self.submissionImageUrl[self.widgetNum]:
+        elif 'youtube.com' in self.submissionImageUrl[self.widgetNum] or 'youtu.be' in self.submissionImageUrl[self.widgetNum]:
             self.submissionVideo = None
             self.submissionVideo = QWebEngineView()
             self.submissionVideo.page().settings().setAttribute(QWebEngineSettings.ShowScrollBars, False)
@@ -915,7 +929,8 @@ class MainWindow(QMainWindow):
                 try:
                     ytEmbedUrl = self.submissionImageUrl[self.widgetNum].split("?v=")[1]
                 except IndexError:
-                    pass
+                    ytEmbedUrl = self.submissionImageUrl[self.widgetNum][self.submissionImageUrl[self.widgetNum].rfind('/'):]
+                    ytEmbedUrl = ytEmbedUrl[1:]
             print(ytEmbedUrl)
             ytEmbedUrl = ytEmbedUrl.split('&')[0]
             print(ytEmbedUrl)
@@ -1027,7 +1042,7 @@ class MainWindow(QMainWindow):
         self.scroll.setStyleSheet('background-color: #f0f0f0; color: #0f0f0f; margin: 0px 0px;')
         self.viewLayout = QVBoxLayout()
         self.scroll.setWidget(self.descWidget)
-        self.viewWidget.setStyleSheet('background-color: #ff0000; color: #0f0f0f; margin: 0px 0px;')
+        self.viewWidget.setStyleSheet('background-color: #f0f0f0; color: #0f0f0f; margin: 0px 0px;')
         self.viewLayout.addWidget(self.scroll)
         self.viewWidget.setLayout(self.viewLayout)
         self.viewWindowLayout.addWidget(self.viewWidget)
@@ -1345,7 +1360,7 @@ class MainWindow(QMainWindow):
         self.subredditBarContainer.setStyleSheet('background-color: #0f0f0f;')
         self.subredditBar = QWidget()
         self.subredditBar.setMaximumWidth(540)
-        self.subredditBar.setMinimumWidth(120)
+        self.subredditBar.setMinimumWidth(540)
         self.subredditBar.setLayout(self.subList)
         self.subScroll = QScrollArea()
         self.subScroll.setWidget(self.subredditBar)

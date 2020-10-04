@@ -24,6 +24,10 @@ QToolButton:hover {
   background-color: #b2b2b2;
 }
 
+IDWidget:hover {
+  background-color: #b2b2b2;
+}
+
 QToolBar {
   background-color: #0f0f0f;
 }
