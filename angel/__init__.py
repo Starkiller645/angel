@@ -14,7 +14,13 @@ from PIL import Image, ImageOps
 import requests
 import io
 import ffmpeg
+import importlib
 
+try:
+    importlib.reload(angellib)
+    from angellib import *
+except NameError:
+    from angellib import *
 from wget import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
@@ -128,21 +134,11 @@ if isWindows:
 else:
     app.setWindowIcon(QIcon('/opt/angel-reddit/angel.ico'))
 
-class ThreadSignals(QObject):
-    finished = pyqtSignal()
-    passReddit = pyqtSignal(object)
-    startLoadAnimation = pyqtSignal()
-    passCode = pyqtSignal(str, object)
-    videoPath = pyqtSignal(str)
-    done = pyqtSignal()
-    addVideoWidget = pyqtSignal(str)
-
-
 class AuthorisationWorker(QRunnable):
 
     def __init__(self):
         super(AuthorisationWorker, self).__init__()
-        self.signals = ThreadSignals()
+        self.signals = threadsignals.ThreadSignals()
 
     @pyqtSlot()
     def run(self):
@@ -174,139 +170,7 @@ class AuthorisationWorker(QRunnable):
         if debug:
             print('[THREAD] Done!\n')
 
-class VideoWorker(QRunnable):
-    def __init__(self, jsonUrl):
-        super(VideoWorker, self).__init__()
-        self.signals = ThreadSignals()
-        self.jsonUrl = jsonUrl
 
-    @pyqtSlot()
-    def run(self):
-        if isWindows:
-            jsonFile = open('{}/Angel/temp/vid_json.json'.format(appData), 'wb')
-        else:
-            jsonFile = open('/opt/angel-reddit/temp/vid_json.json', 'wb')
-        initRequest = requests.get(self.jsonUrl)
-        request = initRequest.url
-        request = request[:len(request) - 1]
-        request += '.json'
-        print(request)
-        finalRequest = requests.get(request, headers = {"User-agent" : "Angel for Reddit (by /u/Starkiller645)"})
-        jsonFile.write(finalRequest.content)
-        jsonFile.close()
-        if isWindows:
-            jsonFile = open('{}/Angel/temp/vid_json.json'.format(appData), 'r')
-        else:
-            jsonFile = open('/opt/angel-reddit/temp/vid_json.json', 'r')
-        parsedJson = json.loads(jsonFile.read())
-        print(jsonFile.read())
-        print(parsedJson)
-        print(parsedJson[0]["data"]["children"][0]["data"]["secure_media"]["reddit_video"]["fallback_url"])
-        rawUrl = parsedJson[0]["data"]["children"][0]["data"]["secure_media"]["reddit_video"]["fallback_url"]
-        audioUrl = rawUrl[:rawUrl.rfind('/')] + '/audio'
-        print(audioUrl)
-        if isWindows:
-            with open('{}/Angel/temp/.vid.mp4'.format(appData), 'wb') as video:
-                data = requests.get(rawUrl)
-                video.write(data.content)
-        else:
-            with open('/opt/angel-reddit/temp/.vid.mp4', 'wb') as video:
-                data = requests.get(rawUrl)
-                video.write(data.content)
-
-        if isWindows:
-            # FFmpeg is not easily available on windows, so for now there is no support for sound on this platform
-            # In a later release we will add a different audio/video backend that supports windows and is installed
-            # from PyPi
-            self.videoPath = '{}/Angel/temp/.vid.mp4'.format(appData)
-            self.signals.videoPath.emit(self.videoPath)
-            self.signals.done.emit()
-            self.signals.addVideoWidget.emit(self.videoPath)
-        else:
-            try:
-                with open('/opt/angel-reddit/temp/.aud.mp4', 'wb') as audio:
-                    data = requests.get(audioUrl, headers = {"User-agent" : "Angel for Reddit (by /u/Starkiller645)"})
-                    audio.write(data.content)
-            except:
-                with open('/opt/angel-reddit/temp/.aud.mp4', 'wb') as audio:
-                    audioUrl = rawUrl[:rawUrl.rfind('/')] + '/DASH_audio.mp4'
-                    data = requests.get(audioUrl, headers = {"User-agent" : "Angel for Reddit (by /u/Starkiller645)"})
-                    audio.write(data.content)
-            audio = open('/opt/angel-reddit/temp/.aud.mp4', 'rt')
-            try:
-                if '?xml' not in audio.read():
-                    video = ffmpeg.input('{}/Angel/temp/.vid.mp4'.format(appData))
-                    audio = ffmpeg.input('{}/Angel/temp/.aud.mp4'.format(appData))
-                    output = ffmpeg.output(video, audio, '{}/Angel/temp/combined.mp4'.format(appData), vcodec='copy', acodec='aac', strict='experimental')
-                    self.videoPath = '{}/Angel/temp/combined.mp4'.format(appData)
-                    self.signals.videoPath.emit(self.videoPath)
-                    self.signals.done.emit()
-                    self.signals.addVideoWidget.emit(self.videoPath)
-            except:
-                video = ffmpeg.input('{}/Angel/temp/.vid.mp4'.format(appData))
-                audio = ffmpeg.input('{}/Angel/temp/.aud.mp4'.format(appData))
-                output = ffmpeg.output(video, audio, '{}/Angel/temp/combined.mp4'.format(appData), vcodec='copy', acodec='aac', strict='experimental')
-                self.videoPath = '{}/Angel/temp/combined.mp4'.format(appData)
-                self.signals.videoPath.emit(self.videoPath)
-                self.signals.done.emit()
-                self.signals.addVideoWidget.emit(self.videoPath)
-            audio = open('/opt/angel-reddit/temp/.aud.mp4', 'rt')
-            try:
-                if '?xml' in audio.read():
-                    if debug:
-                        print('[DBG] Error downloading audio for video\n[DBG] Trying again with new URL format')
-                    raise OSError
-                    pass
-                else:
-                    audio.close()
-                    video = ffmpeg.input('/opt/angel-reddit/temp/.vid.mp4')
-                    audio = ffmpeg.input('/opt/angel-reddit/temp/.aud.mp4')
-                    output = ffmpeg.output(video, audio, '/opt/angel-reddit/temp/combined.mp4', vcodec='copy', acodec='aac', strict='experimental')
-                    output.run(overwrite_output=True)
-                    self.videoPath = '/opt/angel-reddit/temp/combined.mp4'
-                    self.signals.videoPath.emit(self.videoPath)
-                    self.signals.done.emit()
-                    self.signals.addVideoWidget.emit(self.videoPath)
-            except OSError:
-                os.remove('/opt/angel-reddit/temp/.aud.mp4')
-                audioUrl = rawUrl[:rawUrl.rfind('/')] + '/DASH_audio.mp4'
-                if debug:
-                    print('[DBG] Trying with new URL scheme\n{}'.format(audioUrl))
-                with open('/opt/angel-reddit/temp/.aud.mp4', 'wb') as audio:
-                    data = requests.get(audioUrl, headers = {"User-agent" : "Angel for Reddit (by /u/Starkiller645)"})
-                    audio.write(data.content)
-                    audio.close()
-                    audio = open('/opt/angel-reddit/temp/.aud.mp4', 'rt')
-                    try:
-                        print(audio.read())
-                    except UnicodeDecodeError:
-                        requestFailed = False
-                    else:
-                        requestFailed = True
-                    if requestFailed:
-                        if debug:
-                            print('[DBG] Error downloading audio for video')
-                        self.videoPath = '/opt/angel-reddit/temp/.vid.mp4'
-                        audio.close()
-                        self.signals.videoPath.emit(self.videoPath)
-                        self.signals.done.emit()
-                        self.signals.addVideoWidget.emit(self.videoPath)
-                    else:
-                        audio.close()
-                        video = ffmpeg.input('/opt/angel-reddit/temp/.vid.mp4')
-                        audio = ffmpeg.input('/opt/angel-reddit/temp/.aud.mp4')
-                        output = ffmpeg.output(video, audio, '/opt/angel-reddit/temp/combined.mp4', vcodec='copy', acodec='aac', strict='experimental')
-                        output.run(overwrite_output=True)
-                        self.videoPath = '/opt/angel-reddit/temp/combined.mp4'
-                        self.signals.videoPath.emit(self.videoPath)
-                        self.signals.done.emit()
-                        self.signals.addVideoWidget.emit(self.videoPath)
-            else:
-                audio.close()
-                self.videoPath = '/opt/angel-reddit/temp/.vid.mp4'
-                self.signals.self.videoPath.emit(self.videoPath)
-                self.signals.done.emit()
-                self.signals.addVideoWidget.emit(self.videoPath)
 
 class WebPageView(QWebEngineView):
     def __init__(self, url):
@@ -329,7 +193,7 @@ class IDWidget(QCommandLinkButton):
         return self.id
 
     def setBorderOrange(self, event=None):
-        self.setStyleSheet('border-left: 5px solid #ff4500;')
+        self.setStyleSheet('border-left: 3px solid #ff4500;')
 
     def setBorderNone(self, event=None):
         self.setStyleSheet('border-left: none;')
@@ -811,11 +675,13 @@ class MainWindow(QMainWindow):
         self.media.setMedia(QMediaContent(QUrl.fromLocalFile(videoPath)))
         self.media.setVideoOutput(self.submissionVideo)
         self.mainBody.setSizeConstraint(QLayout.SetNoConstraint)
-        self.mainBodyWidget.setMaximumWidth(self.width() - 540)
-        self.mainBodyWidget.setMinimumHeight(650)
+        self.mainBodyWidget.setMaximumWidth(self.width() - 600)
+        self.mainBodyWidget.setStyleSheet("padding-left: 0px;")
+        self.mainBodyWidget.setFixedHeight(self.height() - 140)
         self.submissionVideo.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
         self.submissionVideo.setMinimumHeight(120)
-        self.submissionVideo.setMinimumWidth(200)
+        self.submissionVideo.setFixedWidth(self.mainBodyWidget.width())
+        self.submissionVideo.setFixedHeight(self.mainBodyWidget.height() - 200)
         self.mainBody.addWidget(self.submissionVideo)
         self.media.play()
         self.mainBody.addWidget(self.submissionVideo)
@@ -856,6 +722,7 @@ class MainWindow(QMainWindow):
         self.viewWidget.setMaximumWidth(self.width() - 540)
         self.mainBody = QVBoxLayout()
         self.mainBodyWidget = QWidget()
+        self.mainBodyWidget.setFixedWidth(self.width() - 600)
         self.urlLayout = QHBoxLayout()
         self.urlBar = QWidget()
         if debug:
@@ -884,7 +751,7 @@ class MainWindow(QMainWindow):
             submissionImage = QLabel()
             self.mediaPath = self.fetchImage(self.submissionImageUrl[self.widgetNum])
             preimg = QPixmap(self.mediaPath)
-            img = preimg.scaledToWidth(500)
+            img = preimg.scaledToHeight(self.mainBodyWidget.height())
             submissionImage.setPixmap(img)
             if debug:
                 print('[DBG] Created pixmap for image')
@@ -898,7 +765,7 @@ class MainWindow(QMainWindow):
             self.threadpool = QThreadPool()
 
             # Create a QRunnable
-            self.worker = VideoWorker(jsonUrl)
+            self.worker = videoworker.VideoWorker(jsonUrl)
 
             # Start the thread running
             self.threadpool.start(self.worker)
@@ -961,6 +828,7 @@ class MainWindow(QMainWindow):
         self.submissionScore = QWidget()
 
         self.saveWidget = QPushButton('Save File')
+        self.saveWidget.setStyleSheet('color: #0f0f0f;')
         self.saveWidget.clicked.connect(lambda null: self.saveFile())
 
         # Set up Score (Combined up- and downvotes) widget, to be able to view upvotes
@@ -1009,11 +877,8 @@ class MainWindow(QMainWindow):
         if submissionImage is not None:
             self.mainBody.addWidget(submissionImage)
             submissionImage.show()
-        try:
-            if self.submissionVideo is not None:
-                self.mainBody.addWidget(self.submissionVideo)
-        except AttributeError:
-            pass
+        elif 'youtube.com' in self.submissionImageUrl[self.widgetNum] or 'youtu.be' in self.submissionImageUrl[self.widgetNum]:
+            self.mainBody.addWidget(self.submissionVideo)
         self.mainBody.addWidget(self.submissionBody)
         self.mainBodyWidget.setLayout(self.mainBody)
         self.scroll.setWidget(self.mainBodyWidget)
@@ -1149,7 +1014,7 @@ class MainWindow(QMainWindow):
             self.subWidgetList[self.i].setFixedHeight(100)
             self.subWidgetList[self.i].setFixedWidth(460)
             self.subScroll.setFixedWidth(500)
-            self.sideBar.setMaximumWidth(540)
+            self.sideBar.setFixedWidth(540)
             self.subScroll.setWidget(self.subredditBar)
             self.subScroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
             self.subScroll.setWidgetResizable(True)
@@ -1254,8 +1119,8 @@ class MainWindow(QMainWindow):
             pass
         self.searchButton = QPushButton('Go')
         self.searchButton.setShortcut("Return")
-        self.searchSubs.setMaximumWidth(500)
-        self.searchSubs.setMinimumWidth(500)
+        self.searchSubs.setMaximumWidth(340)
+        self.searchSubs.setMinimumWidth(280)
         self.searchButton.setMaximumWidth(40)
         self.toolbar = QToolBar()
         self.subBar = QToolBar()
@@ -1331,7 +1196,7 @@ class MainWindow(QMainWindow):
         self.setCorner(Qt.TopLeftCorner, Qt.LeftDockWidgetArea)
         self.funcBar.setStyleSheet('background-color: #cccccc')
         self.addToolBar(self.toolbar)
-        self.addToolBar(Qt.LeftToolBarArea, self.funcBar)
+        #self.addToolBar(Qt.LeftToolBarArea, self.funcBar)
         if debug:
             print(self.toolbar.objectName())
             print('[DBG] Added toolbar')
