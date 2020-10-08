@@ -1274,7 +1274,7 @@ class MainWindow(QMainWindow):
 # Add window widgets
 mainThread = QCoreApplication.instance().thread()
 window = MainWindow()
-with open('assets/dark-theme.qss', "r") as stylesheet:
+with open('/opt/angel-reddit/dark-theme.qss', "r") as stylesheet:
     window.setStyleSheet(stylesheet.read())
 window.show()
 
