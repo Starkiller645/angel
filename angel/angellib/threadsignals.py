@@ -11,3 +11,4 @@ class ThreadSignals(QObject):
     videoPath = pyqtSignal(str)
     done = pyqtSignal()
     addVideoWidget = pyqtSignal(str)
+    returnImageLocation = pyqtSignal(str)

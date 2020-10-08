@@ -127,8 +127,7 @@ else:
 
 # Start QApplication instance
 app = QApplication(sys.argv)
-if sys.platform == "darwin":
-    app.setStyle('Fusion')
+app.setStyle('Fusion')
 if isWindows:
     app.setWindowIcon(QIcon('{}/Angel/angel.ico'.format(appData)))
 else:
@@ -562,17 +561,6 @@ class MainWindow(QMainWindow):
     def resourcePath(self, relative):
         return os.path.join(os.environ.get("_MEIPASS2", os.pathdef))
 
-    def fetchImageUrl(self, sub):
-        image = requests.get(url)
-        imageBytes = io.BytesIO(image.content)
-        image = Image.open(imageBytes)
-        if isWindows:
-            image.save('{0}/Angel/temp/.img.{1}'.format(appData, image.format.lower()))
-            return '{0}/Angel/temp/.img.{1}'.format(appData, (image.format).abspath("."), relative)
-        else:
-            image.save('/opt/angel-reddit/temp/.img.{}'.format(image.format))
-            return '/opt/angel-reddit/temp/.img.{}'.format((image.format).abspath("."), relative)
-
     def clearLayout(self, layout):
         for i in reversed(range(layout.count())):
             layout.itemAt(i).widget().deleteLater()
@@ -676,8 +664,8 @@ class MainWindow(QMainWindow):
         self.media.setVideoOutput(self.submissionVideo)
         self.mainBody.setSizeConstraint(QLayout.SetNoConstraint)
         self.mainBodyWidget.setMaximumWidth(self.width() - 600)
-        self.mainBodyWidget.setStyleSheet("padding-left: 0px;")
         self.mainBodyWidget.setFixedHeight(self.height() - 140)
+        self.mainBodyWidget.setStyleSheet("padding-left: 0px;")
         self.submissionVideo.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
         self.submissionVideo.setMinimumHeight(120)
         self.submissionVideo.setFixedWidth(self.mainBodyWidget.width())
@@ -686,6 +674,20 @@ class MainWindow(QMainWindow):
         self.media.play()
         self.mainBody.addWidget(self.submissionVideo)
         self.mainBody.update()
+
+    def viewImage(self, imagePath):
+        self.submissionImage = QLabel()
+        self.mediaPath = imagePath
+        preimg = QPixmap(self.mediaPath)
+        self.mainBodyWidget.setFixedHeight(self.height() - 140)
+        print(self.mainBodyWidget.height())
+        img = preimg.scaledToHeight(self.mainBodyWidget.height() - 150)
+        self.submissionImage.setPixmap(img)
+        if debug:
+            print('[DBG] Created pixmap for image')
+        self.submissionVideo = None
+        self.mainBody.addWidget(self.submissionImage)
+        self.submissionImage.show()
 
     def view(self, id=False):
         self.hasDownVoted = False
@@ -722,7 +724,7 @@ class MainWindow(QMainWindow):
         self.viewWidget.setMaximumWidth(self.width() - 540)
         self.mainBody = QVBoxLayout()
         self.mainBodyWidget = QWidget()
-        self.mainBodyWidget.setFixedWidth(self.width() - 600)
+        self.mainBodyWidget.setMinimumWidth(self.width() - 600)
         self.urlLayout = QHBoxLayout()
         self.urlBar = QWidget()
         if debug:
@@ -748,14 +750,10 @@ class MainWindow(QMainWindow):
         if debug:
             print('[DBG] Created submission body widget')
         if 'i.redd.it' in self.submissionImageUrl[self.widgetNum] or 'imgur.com' in self.submissionImageUrl[self.widgetNum]:
-            submissionImage = QLabel()
-            self.mediaPath = self.fetchImage(self.submissionImageUrl[self.widgetNum])
-            preimg = QPixmap(self.mediaPath)
-            img = preimg.scaledToHeight(self.mainBodyWidget.height())
-            submissionImage.setPixmap(img)
-            if debug:
-                print('[DBG] Created pixmap for image')
-            self.submissionVideo = None
+            self.threadpool = QThreadPool()
+            self.worker = imageworker.ImageWorker(self.submissionImageUrl[self.widgetNum])
+            self.threadpool.start(self.worker)
+            self.worker.signals.returnImageLocation.connect(self.viewImage)
 
         elif 'v.redd.it' in self.submissionImageUrl[self.widgetNum]:
             self.frame = QLabel()
@@ -874,10 +872,7 @@ class MainWindow(QMainWindow):
         self.submissionUrl.setOpenExternalLinks(True)
         self.mainBody.addWidget(self.submissionTitle)
         self.mainBody.addWidget(self.submissionAuthor)
-        if submissionImage is not None:
-            self.mainBody.addWidget(submissionImage)
-            submissionImage.show()
-        elif 'youtube.com' in self.submissionImageUrl[self.widgetNum] or 'youtu.be' in self.submissionImageUrl[self.widgetNum]:
+        if 'youtube.com' in self.submissionImageUrl[self.widgetNum] or 'youtu.be' in self.submissionImageUrl[self.widgetNum]:
             self.mainBody.addWidget(self.submissionVideo)
         self.mainBody.addWidget(self.submissionBody)
         self.mainBodyWidget.setLayout(self.mainBody)
