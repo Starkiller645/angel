@@ -14,7 +14,25 @@ Classes:
     ImageWorker (str): Child of QRunnable which gets an image from a direct
         URL. Takes a direct URL for an image to download.
         See imageworker.py
+
+    MainWindow: Child of QMainWindow. Contains most of the application code that does
+        not need to be run asynchronously, except the code contained in the Helpers class,
+        and in the other classes in this library.
+        See mainwindow.py
+
+    IDWidget (str): Child of QCommandLinkButton with an implementation of a
+        unique identifier, to assist with viewing a specific widget in a list.
+        See idwidget.py
+
+    WebPageView (str): Child of QWebEngineView. Easy to use - simply pass a URL
+        to the constructor and the class will render it as a widget.
+        See webpage.py
+
+    AuthorisationWorker: Child of QRunnable which sets up basic authentication with
+        Reddit and then emits a signals containing an authcode and praw.Reddit
+        instance associated with it.
+        See authorisationworker.py
 """
 
 
-__all__ = ["videoworker", "threadsignals", "imageworker"]
+__all__ = ["videoworker", "threadsignals", "imageworker",  "idwidget", "webpage", "unittests", "authorisationworker"]
