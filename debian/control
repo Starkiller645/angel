@@ -1,0 +1,13 @@
+Source: angel
+Section: python
+Priority: extra
+Maintainer: Jacob Tye <jacob.tye@outlook.com>
+Build-Depends: debhelper (>= 9), python3, dh-virtualenv (>= 0.8)
+Standards-Version: 3.9.5
+
+Package: angel
+Architecture: any
+Pre-Depends: dpkg (>=1.16.1), python3.6 | python3.7 | python3.8, ${misc:Pre-Depends}
+Depends: ${misc:Depends}
+Description: Angel - A Reddit client for Linux
+	Angel is a native Reddit client for the Linux desktop, built using Python and Qt5
