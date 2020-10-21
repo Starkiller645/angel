@@ -42,8 +42,6 @@ class VideoWorker(QRunnable):
         else:
             jsonFile = open('/opt/angel-reddit/temp/vid_json.json', 'r')
         parsedJson = json.loads(jsonFile.read())
-        print(jsonFile.read())
-        print(parsedJson)
         print(parsedJson[0]["data"]["children"][0]["data"]["secure_media"]["reddit_video"]["fallback_url"])
         rawUrl = parsedJson[0]["data"]["children"][0]["data"]["secure_media"]["reddit_video"]["fallback_url"]
         audioUrl = rawUrl[:rawUrl.rfind('/')] + '/audio'

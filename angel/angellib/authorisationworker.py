@@ -45,9 +45,12 @@ class AuthorisationWorker(QRunnable):
         }
         # Authorise to Reddit and initRedditassign to variable
         print('[DBG] Setup data done!')
-        if os.environ.get("DEBUG", "") == 'true':
-            print('[DBG] AuthCode = ' + params["code"])
+        try:
+            if os.environ.get("DEBUG", "") == 'true':
+                print('[DBG] AuthCode = ' + params["code"])
+            self.signals.passCode.emit(params["code"], self.reddit)
+        except KeyError:
+            self.signals.passCode.emit("failedwithkeyerror", self.reddit)
 
-        self.signals.passCode.emit(params["code"], self.reddit)
         if os.environ.get("DEBUG", "") == 'true':
             print('[THREAD] Done!\n')

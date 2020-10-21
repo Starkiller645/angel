@@ -20,6 +20,7 @@ except NameError:
 
 import os
 import sys
+import gc
 
 
 class MainWindow(QMainWindow):
@@ -81,6 +82,14 @@ class MainWindow(QMainWindow):
         """
 
         # Assign praw.Reddit instance to a class object and authorise with authCode
+        if authCode == "failedwithkeyerror":
+            self.worker = None
+            self.worker = authorisationworker.AuthorisationWorker()
+            self.worker.__init__()
+            self.webpage = None
+            self.worker.signals.passReddit.connect(self.openLoginPage)
+            self.worker.signals.passCode.connect(self.connectToReddit)
+            return
         self.reddit = Reddit
         self.code = self.reddit.auth.authorize(authCode)
 
@@ -101,11 +110,11 @@ class MainWindow(QMainWindow):
             with open("{}/praw.ini".format(os.environ.get("APPDATA", "")), "a") as prawini:
                 prawini.write('\nrefresh_token={}'.format(self.code))
         else:
-            with open("{}/praw.ini".format(os.environ.get("HOME", "")), "a") as prawini:
+            with open("{}/.config/praw.ini".format(os.environ.get("HOME", "")), "a") as prawini:
                 prawini.write('\nrefresh_token={}'.format(self.code))
 
         # Call the initUI function which will set up the main interface
-        self.initUI()
+        self.initNewUI()
 
 
 
@@ -187,7 +196,7 @@ class MainWindow(QMainWindow):
             self.reddit = praw.Reddit("angel")
             self.redditUname = self.reddit.user.me()
             prawini.close()
-            self.initUI()
+            self.initNewUI()
         else:
             if os.environ.get("DEBUG", "") == 'true':
                 print('[DBG] Setting up login UI')
@@ -374,6 +383,9 @@ class MainWindow(QMainWindow):
         self.mainBody.addWidget(self.submissionVideo)
         self.mainBody.update()
 
+    def setVideoPath(self, path):
+        self.mediaPath = path
+
     def viewImage(self, imagePath):
         self.submissionImage = QLabel()
         self.mediaPath = imagePath
@@ -389,13 +401,13 @@ class MainWindow(QMainWindow):
         self.submissionImage.show()
 
     def view(self, id=False):
+
         self.hasDownVoted = False
         self.hasUpVoted = False
         if id != False:
             self.widgetNum = id
         else:
             self.widgetNum = self.sender().getID()
-        self.subBar.setFixedWidth(self.sideBar.width())
         for i in self.subWidgetList:
             i.setBorderNone()
         self.subWidgetList[self.widgetNum].setBorderOrange()
@@ -405,22 +417,21 @@ class MainWindow(QMainWindow):
         if os.environ.get("DEBUG", "") == 'true':
             print("[DBG] Func arg ID is " + str(id))
             print("[DBG] self.widgetNum is " + str(self.widgetNum))
-        self.viewWindowLayout.removeWidget(self.viewWidget)
-        if self.viewWidget is not None:
-            self.viewWidget.deleteLater()
-        self.viewWidget = None
-        if self.scroll is not None:
-            self.scroll.takeWidget()
-        else:
+        #if self.viewWidget is not None:
+            #self.viewWidget.deleteLater()
+        #self.viewWidget = None
+        try:
+            if self.scroll is not None:
+                self.scroll.takeWidget()
+        except RuntimeError:
             self.viewWidget = QWidget()
             self.viewLayout = QVBoxLayout()
             self.scroll = QScrollArea()
             self.scroll.setWidget(self.viewWidget)
             self.scroll.takeWidget()
-            self.viewWindow.addWidget(self.scroll)
+            self.viewWindowLayout.addWidget(self.scroll)
         self.viewWidget = QWidget()
         self.viewLayout = QVBoxLayout()
-        self.viewWidget.setMaximumWidth(self.width() - 540)
         self.mainBody = QVBoxLayout()
         self.mainBodyWidget = QWidget()
         self.mainBodyWidget.setMinimumWidth(self.width() - 600)
@@ -453,6 +464,7 @@ class MainWindow(QMainWindow):
             print('[DBG] Created submission body widget')
         if 'i.redd.it' in self.submissionImageUrl[self.widgetNum] or 'imgur.com' in self.submissionImageUrl[self.widgetNum]:
             self.threadpool = QThreadPool()
+            self.submissionImage = QLabel()
             self.worker = imageworker.ImageWorker(self.submissionImageUrl[self.widgetNum])
             self.threadpool.start(self.worker)
             self.worker.signals.returnImageLocation.connect(self.viewImage)
@@ -483,7 +495,6 @@ class MainWindow(QMainWindow):
 
             # Set the video path from a signal
             self.worker.signals.videoPath.connect(self.setVideoPath)
-            submissionImage = None
 
         elif 'youtube.com' in self.submissionImageUrl[self.widgetNum] or 'youtu.be' in self.submissionImageUrl[self.widgetNum]:
             self.submissionVideo = None
@@ -506,13 +517,13 @@ class MainWindow(QMainWindow):
             self.submissionVideo.setFixedHeight(488)
             self.submissionVideo.show()
             print('[DBG] Showing YT Video')
-            submissionImage = None
+            self.submissionImage = None
         elif 'reddit.com' not in self.submissionImageUrl[self.widgetNum]:
-            submissionImage = webpage.WebPageView(self.submissionImageUrl[self.widgetNum])
-            submissionImage.setFixedWidth(self.mainBodyWidget.width())
+            self.submissionImage = webpage.WebPageView(self.submissionImageUrl[self.widgetNum])
+            self.submissionImage.setFixedWidth(self.mainBodyWidget.width())
             self.submissionVideo = None
         else:
-            submissionImage = None
+            self.submissionImage = None
             self.submissionVideo = None
             if os.environ.get("DEBUG", "") == 'true':
                 print('[DBG] Set submissionImage to None')
@@ -569,21 +580,24 @@ class MainWindow(QMainWindow):
         self.submissionUrl.setOpenExternalLinks(True)
         self.mainBody.addWidget(self.submissionTitle)
         self.mainBody.addWidget(self.submissionAuthor)
+        self.mainBodyWidget.setLayout(self.mainBody)
         if 'youtube.com' in self.submissionImageUrl[self.widgetNum] or 'youtu.be' in self.submissionImageUrl[self.widgetNum]:
             self.mainBody.addWidget(self.submissionVideo)
-        if 'reddit.com' not in self.submissionImageUrl[self.widgetNum] and 'submissionImage' in locals():
-            self.mainBody.addWidget(submissionImage)
+        print(self.submissionImage)
+        if 'reddit.com' not in self.submissionImageUrl[self.widgetNum]:
+            self.mainBody.addWidget(self.submissionImage)
             if os.environ.get("DEBUG", "") == 'true':
                 print(self.mainBodyWidget.height())
                 print(self.submissionTitle.height())
                 print(self.submissionAuthor.height())
-            submissionImage.setFixedHeight(self.mainBodyWidget.height())
+        self.submissionImage.setFixedHeight(self.mainBodyWidget.height())
 
         self.mainBody.addWidget(self.submissionBody)
-        self.mainBodyWidget.setLayout(self.mainBody)
         self.scroll.setWidget(self.mainBodyWidget)
         self.urlLayout.addWidget(self.submissionUrl)
         self.urlBar.setLayout(self.urlLayout)
+        for i in reversed(range(self.viewLayout.count())):
+            self.viewLayout.itemAt(i).widget().deleteLater()
         self.viewLayout.addWidget(self.scroll)
         self.viewLayout.addWidget(self.submissionScore)
         self.viewWidget.setLayout(self.viewLayout)
@@ -595,11 +609,10 @@ class MainWindow(QMainWindow):
             print('[DBG] Showing viewWidget')
 
     def showSubDesc(self):
-        self.viewWindowLayout.removeWidget(self.viewWidget)
-        self.viewWidget.deleteLater()
-        self.viewWidget = None
-        self.viewWidget = QWidget()
-        self.descWidget = QLabel(self.sub.description_html)
+        if self.sub.display_name == "all":
+            self.descWidget = QLabel("<h1>Frontpage</h1><br/><i>Welcome to the front page of the Internet!</i>")
+        else:
+            self.descWidget = QLabel(self.sub.description_html)
         self.descWidget.setStyleSheet('background-color: #f0f0f0; color: #0f0f0f; margin: 0px 0px;')
         self.descWidget.setTextFormat(Qt.RichText)
         self.descWidget.setOpenExternalLinks(True)
@@ -610,7 +623,7 @@ class MainWindow(QMainWindow):
         self.viewWidget.setStyleSheet('background-color: #f0f0f0; color: #0f0f0f; margin: 0px 0px;')
         self.viewLayout.addWidget(self.scroll)
         self.viewWidget.setLayout(self.viewLayout)
-        self.viewWindowLayout.addWidget(self.viewWidget)
+        self.viewWidgetLayout.addWidget(self.viewWidget)
         self.viewWindowLayout.setAlignment(Qt.AlignLeft)
         self.mainLayout.addWidget(self.viewWindow)
         self.viewWidget.show()
@@ -621,9 +634,8 @@ class MainWindow(QMainWindow):
     def switchSub(self, subreddit=None):
         if os.environ.get("DEBUG", "") == 'true':
             print(subreddit)
-        self.status.setText('Retrieving submissions')
         time.sleep(0.5)
-
+        self.collapsedSearch.connect_button_to_slot(self.switchSub)
         # Set up icons for the various post types
         self.linkIcon = QIcon('{}/link.png'.format(self.runtimePrefix))
         self.textIcon = QIcon('{}/text.png'.format(self.runtimePrefix))
@@ -665,7 +677,6 @@ class MainWindow(QMainWindow):
 
         except prawcore.exceptions.RequestException:
             self.wowSuchEmpty.setText('An error occurred - Read\noperation timed out')
-            self.status.setText('Error - Timed out or sub does not exist')
         self.setSubMeta(self.sub)
         self.showSubDesc()
         if os.environ.get("DEBUG", "") == 'true':
@@ -710,16 +721,14 @@ class MainWindow(QMainWindow):
             self.subWidgetList[self.i].setFixedHeight(100)
             self.subWidgetList[self.i].setFixedWidth(460)
             self.subScroll.setFixedWidth(500)
-            self.sideBar.setFixedWidth(540)
+            self.barsWidget.setFixedWidth(540)
+            self.barsLayout.setSpacing(0)
+            self.barsLayout.setContentsMargins(0,0,0,0)
+            self.barsWidget.setStyleSheet("padding: 0; margin: 0;")
             self.subScroll.setWidget(self.subredditBar)
             self.subScroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
             self.subScroll.setWidgetResizable(True)
             time.sleep(0.01)
-        try:
-            self.status.setText('/u/' + str(self.redditUname))
-        except AttributeError:
-            self.status.setText('Connected to Reddit')
-
 
 
     # Define function to instantiate an anonymous instance of the PRAW Reddit class
@@ -731,7 +740,7 @@ class MainWindow(QMainWindow):
         if os.environ.get("DEBUG", "") == 'true':
             print(self.reddit)
             print(self.reddit.auth.url(["identity", "vote", "read", "mysubreddits", "history"], "...", "permanent"))
-        self.initUI()
+        self.initNewUI()
 
 
     def createMenu(self, dictionary, menu):
@@ -798,6 +807,186 @@ class MainWindow(QMainWindow):
         self.widgetNum -= 1
         self.view(self.widgetNum)
 
+    def initNewUI(self):
+        self.webpage = None
+        self.searchSubs = QLineEdit(placeholderText="Search: r/subreddit")
+
+        # Set up main window layout
+        self.window = QWidget()
+        self.window.setStyleSheet("padding: 0;")
+        self.windowLayout = QVBoxLayout()
+        self.windowLayout.setSpacing(0)
+        self.window.setLayout(self.windowLayout)
+        self.primaryWidget = QWidget()
+        self.primaryWidget.setContentsMargins(0,0,0,0)
+        self.primaryWidget.setStyleSheet("background-color: #66ff66; padding: 0;")
+        self.mainLayout = QHBoxLayout()
+        self.mainLayout.setSpacing(0)
+        self.primaryWidget.setLayout(self.mainLayout)
+
+        # Toolbar widget to go in the top-right, displaying submission title etc.
+        self.toolbarWidget = QWidget()
+        self.toolbar = QHBoxLayout()
+        self.toolbar.addWidget(QLabel("self.toolbar"))
+        self.toolbarWidget.setLayout(self.toolbar)
+        self.toolbarWidget.setFixedHeight(200)
+
+        # Subreddit bar widget in top-left; shows subreddit info
+        self.subBarWidget = QWidget()
+        self.subBar = QHBoxLayout()
+        self.subBar.addWidget(QLabel("self.subBar"))
+        self.subBarWidget.setStyleSheet("background-color: #0f0f0f; color: #f0f0f0;")
+        self.subBarWidget.setLayout(self.subBar)
+        self.subBarWidget.setFixedHeight(200)
+
+        # Top widget; contains the two widgets above and wraps into one toolbar
+        self.topWidget = QWidget()
+        self.topWidgetLayout = QHBoxLayout()
+        self.topWidgetLayout.setSpacing(0)
+        self.topWidgetLayout.addWidget(self.subBarWidget)
+        self.topWidgetLayout.addWidget(self.toolbarWidget)
+        self.topWidget.setLayout(self.topWidgetLayout)
+        self.topWidget.setStyleSheet("padding: 0; margin: 0; background-color: #0000ff;")
+        self.topWidget.setMaximumHeight(80)
+
+        # Set up a widget to hold the subreddit bar and the sidebar
+        self.barsWidget = QWidget()
+        self.barsLayout = QHBoxLayout()
+        self.barsLayout.setSpacing(0)
+        self.barsWidget.setLayout(self.barsLayout)
+        self.barsWidget.setStyleSheet("padding: 0; margin: 0; background-color: #ff0000;")
+
+        # Setup sidebar widgets
+        self.sideBar = QVBoxLayout()
+        self.sideBarWidget = QWidget(self.barsWidget)
+        self.collapsedSearch = collapse.CollapsibleDialog('search')
+        self.collapsedSubreddits = collapse.CollapsibleDialog('subs')
+        self.collapsedSearch.installEventFilter(self)
+        self.collapsedSearch.get_button().clicked.connect(self.resizeSideBar)
+        self.sideBar.addWidget(self.collapsedSearch)
+        self.sideBar.addWidget(self.collapsedSubreddits)
+        self.sideBarWidget.setLayout(self.sideBar)
+        self.sideBarWidget.setStyleSheet("padding: 0; background-color: #262626;")
+        self.barsLayout.addWidget(self.sideBarWidget)
+        self.barsWidget.setStyleSheet("padding: 0; background-color: #f0f0f0")
+
+        # Setup top bar widgets
+        self.menuButton = QPushButton()
+        self.menuButtonIcon = QIcon.fromTheme('application-menu')
+        self.menuButton.setText("Menu")
+        self.spacer = QWidget()
+        self.spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.menu = QMenu()
+        self.menuEntryArray = ["Logout", "Website"]
+        self.createMenu(self.menuEntryArray, self.menu)
+        self.menuButton.setMenu(self.menu)
+        self.toolbar.addWidget(self.spacer)
+        self.toolbar.addWidget(self.menuButton)
+        self.menuButton.show()
+        self.menu.actions()[0].triggered.connect(self.logOut)
+        self.menu.actions()[1].triggered.connect(lambda null, page="https://github.com/Starkiller645/angel": webbrowser.open(page))
+        if os.environ.get("DEBUG", "") == 'true':
+            print('[DBG] Set up right side of toolbar')
+
+        self.spacer1 = QWidget()
+        self.spacer2 = QWidget()
+        self.spacer1.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.spacer2.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.subIcon = QLabel()
+        self.subIconPixmap = QPixmap()
+        self.subHeader = QLabel('r/none')
+        self.subHeader.setStyleSheet('font-weight: bold; font-size: 30px;')
+        self.subBarHeader = QLabel('r/none')
+        self.subBarHeader.setStyleSheet('font-weight: bold; font-size: 30px;')
+
+        self.subList = QVBoxLayout()
+        self.subredditBarContainer = QWidget()
+        self.subredditBarContainerLayout = QVBoxLayout()
+        self.subredditBarContainer.setLayout(self.subredditBarContainerLayout)
+        self.subredditBarContainer.setStyleSheet('background-color: #0f0f0f; padding: 0;')
+        self.subredditBar = QWidget()
+        self.subredditBar.setLayout(self.subList)
+        self.subScroll = QScrollArea()
+        self.subScroll.setWidget(self.subredditBar)
+        self.subScroll.widgetResizable = True
+        self.subList.addWidget(QLabel("<b>self.subredditBar</b>"))
+        self.subredditBarContainerLayout.addWidget(self.subScroll)
+        self.barsLayout.addWidget(self.subredditBarContainer)
+        self.mainLayout.addWidget(self.barsWidget)
+        if os.environ.get("DEBUG", "") == 'true':
+            print('[DBG] Set main layout')
+
+        # Add main UI widgets
+        self.windowLayout.addWidget(self.topWidget)
+        self.windowLayout.addWidget(self.primaryWidget)
+
+        # Set up left-side scroll area for the submission list
+        if os.environ.get("DEBUG", "") == 'true':
+            print('[DBG] Setting up scroll area')
+        self.subScroll.setStyleSheet('background-color: #0f0f0f;')
+        self.viewWidgetLayout = QVBoxLayout()
+        self.viewWidget = QWidget()
+        self.viewWidget.setLayout(self.viewWidgetLayout)
+        self.viewWidget.setStyleSheet('background-color: #ff4500;')
+        self.viewWidget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.mainLayout.addWidget(self.viewWidget)
+        self.window.setStyleSheet('background-color: #f0f0f0; padding: 0px 0px;')
+
+        self.setCentralWidget(self.window)
+        self.switchSub("all")
+
+    def resizeSideBar(self):
+        # Set up sidebar animation
+        self.sideBarAnimation = QPropertyAnimation(self.sideBarWidget, b"geometry")
+        self.subScrollAnimation = QPropertyAnimation(self.subredditBarContainer, b"geometry")
+        self.sideBarAnimationReverse = QPropertyAnimation(self.sideBarWidget, b"geometry")
+        self.subScrollAnimationReverse = QPropertyAnimation(self.subredditBarContainer, b"geometry")
+        self.subScrollOriginalGeo = self.subredditBarContainer.geometry()
+        self.sideBarOriginalGeo = self.sideBarWidget.geometry()
+        self.sideBarWidgetGeometry = self.sideBarWidget.geometry().getRect()
+        self.subScrollWidgetGeometry = self.subredditBarContainer.geometry().getRect()
+        self.sideGeoList = list(self.sideBarWidgetGeometry)
+        self.sideGeoList[2] += 470
+        self.sideBarAnimation.setEndValue(QRect(self.sideGeoList[0], self.sideGeoList[1], 540, self.sideGeoList[3]))
+        self.subGeoList = list(self.subScrollWidgetGeometry)
+        self.subGeoList[2] = 2
+        self.subScrollAnimation.setEndValue(QRect(540, self.subGeoList[1], self.subGeoList[2], self.subGeoList[3]))
+        #self.sideBarWidget.setFixedWidth(500)
+        #self.subredditBarContainer.setFixedWidth(0)
+        self.subScrollAnimation.start()
+        self.sideBarAnimation.start()
+        #self.sideBar.setFixedWidth(540)
+        try:
+            self.collapsedSearch.get_button().clicked.disconnect()
+        except TypeError:
+            pass
+        self.collapsedSearch.reconnect_slots()
+        self.collapsedSearch.get_button().clicked.connect(self.resizeSubBar)
+
+    def resizeSubBar(self):
+        self.sideBarAnimationReverse = QPropertyAnimation(self.sideBarWidget, b"geometry")
+        self.subScrollAnimationReverse = QPropertyAnimation(self.subredditBarContainer, b"geometry")
+        self.sideBarAnimation.setEndValue(self.sideBarOriginalGeo)
+        self.subGeoList = list(self.subScrollWidgetGeometry)
+        self.sideBarWidgetGeometry = self.sideBarWidget.geometry().getRect()
+        self.subScrollWidgetGeometry = self.subredditBarContainer.geometry().getRect()
+        self.sideGeoList = list(self.sideBarWidgetGeometry)
+        self.sideGeoList[2] -= 470
+        self.sideBarAnimationReverse.setEndValue(QRect(self.sideGeoList[0], self.sideGeoList[1], 64, self.sideGeoList[3]))
+        self.subGeoList = list(self.subScrollWidgetGeometry)
+        self.subGeoList[2] = 500
+        self.subScrollAnimationReverse.setEndValue(QRect(64, self.subGeoList[1], self.subGeoList[2], self.subGeoList[3]))
+        self.sideBarWidget.raise_()
+        self.subScrollAnimationReverse.start()
+        self.sideBarAnimationReverse.start()
+        #self.sideBar.setFixedWidth(540)
+        try:
+            self.collapsedSearch.get_button().clicked.disconnect()
+        except TypeError:
+            pass
+        self.collapsedSearch.reconnect_slots()
+        self.collapsedSearch.get_button().clicked.connect(self.resizeSideBar)
+
 
     # Function call to initialise the main UI of the program
     def initUI(self):
@@ -821,6 +1010,7 @@ class MainWindow(QMainWindow):
         self.searchSubs.setMinimumWidth(280)
         self.searchButton.setMaximumWidth(40)
         self.toolbar = QToolBar()
+        self.collapsedSearch = collapse.CollapsibleDialog()
         self.subBar = QToolBar()
         self.hasUpVoted = False
         self.hasDownVoted = False
@@ -835,21 +1025,6 @@ class MainWindow(QMainWindow):
         self.nullDown.clicked.connect(self.widgetDown)
         self.nullUp.setShortcut("Up")
         self.nullDown.setShortcut("Down")
-
-        # If user is logged in, display uname at top right
-        if self.reddit.user.me() is not None:
-            self.status = QLineEdit('/u/{}'.format(self.redditUname))
-        else:
-            self.status = QLineEdit('Connected to Reddit')
-
-        # Set up the main UI box, including subreddit name and icons,
-        # header and scroll areas
-        # Set up status area
-        self.status.setReadOnly(True)
-        self.status.setAlignment(Qt.AlignRight)
-        self.status.setMaximumWidth(175)
-        self.status.setMinimumWidth(175)
-
 
         # Set up menu button
         self.menuButton = QPushButton("Menu")
@@ -877,7 +1052,6 @@ class MainWindow(QMainWindow):
             print('[DBG] Showing pixmaps')
         self.subHeader = QLabel('r/none')
         self.subHeader.setStyleSheet('font-weight: bold; font-size: 30px;')
-        self.status.setAlignment(Qt.AlignCenter)
         self.subBarHeader = QLabel('r/none')
         self.subBarHeader.setStyleSheet('font-weight: bold; font-size: 30px;')
         self.subBar.setFixedWidth(540)
@@ -899,6 +1073,7 @@ class MainWindow(QMainWindow):
         # Add widgets to toolbar
         self.toolbar.addWidget(self.searchSubs)
         self.toolbar.addWidget(self.searchButton)
+        self.toolbar.addWidget(self.collapsedSearch)
         try:
             if self.redditUname is not None:
                 self.toolbar.addWidget(self.subListButton)
@@ -907,7 +1082,6 @@ class MainWindow(QMainWindow):
         self.toolbar.addWidget(self.spacer1)
         self.toolbar.addWidget(self.subHeader)
         self.toolbar.addWidget(self.spacer2)
-        self.toolbar.addWidget(self.status)
         self.toolbar.addWidget(self.menuButton)
         if os.environ.get("DEBUG", "") == 'true':
             print('[DBG] Toolbar done!')

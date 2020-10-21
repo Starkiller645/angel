@@ -35,4 +35,4 @@ Classes:
 """
 
 
-__all__ = ["videoworker", "threadsignals", "imageworker",  "idwidget", "webpage", "unittests", "authorisationworker"]
+__all__ = ["videoworker", "threadsignals", "imageworker",  "idwidget", "webpage", "unittests", "authorisationworker", "collapse"]
