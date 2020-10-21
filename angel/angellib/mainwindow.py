@@ -47,6 +47,14 @@ class MainWindow(QMainWindow):
             self.runtimePrefix = "/opt/angel-reddit"
         self.initProgram()
 
+    def setVideoPath(self, videoPath):
+        """Internal function to set the media path from a PyQt5 slot.
+        Args:
+            videoPath (str): The fully qualified path to a video file
+        """
+
+        self.mediaPath = videoPath
+
     def runConnect(self):
         """Function to setup the login window. Starts threads and opens QWebEngineView window.
         """
