@@ -25,7 +25,6 @@ from PyQt5.QtWebEngineWidgets import *
 from PyQt5.QtMultimedia import *
 from PyQt5.QtMultimediaWidgets import *
 
-from test import *
 try:
     import pkg_resources.py2_warn
 except ImportError:
